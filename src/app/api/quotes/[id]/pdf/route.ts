@@ -36,10 +36,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         fileName: `${quote.number}.pdf`,
         options: {
           printBackground: true,
-          marginTop: 16,
-          marginBottom: 18,
-          marginLeft: 12,
-          marginRight: 12,
+          // api2pdf (وPuppeteer تحتها) تتوقع قيم الهوامش كنصوص تحمل وحدة قياس (px/in/mm)، وليس أرقاماً
+          // مجردة. إرسالها كأرقام خام كان يُنتج هوامش غير صالحة يُفسّرها Chrome كصفحة بلا مساحة طباعة
+          // ("content area is empty"), وهو ما كان يفشّل كل عملية تصدير.
+          marginTop: "16px",
+          marginBottom: "18px",
+          marginLeft: "12px",
+          marginRight: "12px",
         },
       }),
     });
