@@ -1,0 +1,11 @@
+services:
+  baq-quotes:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - baq-data:/app/data
+
+volumes:
+  baq-data:
