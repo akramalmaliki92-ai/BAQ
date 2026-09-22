@@ -6,8 +6,7 @@
 // الفرق الجوهري عن النسخة المحلية (node:sqlite): Postgres عبر الشبكة، فكل استعلام أصبح غير
 // متزامن (Promise) بدل متزامن — لذا يجب استخدام await في كل مكان يستدعي دوال طبقة repo.
 import { Pool, type QueryResultRow } from "pg";
-import fs from "node:fs";
-import path from "node:path";
+import { SCHEMA_SQL } from "./schema-sql";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -40,9 +39,7 @@ if (process.env.NODE_ENV !== "production") {
 function ensureSchema(): Promise<void> {
   if (!globalThis.__baqSchemaReady) {
     globalThis.__baqSchemaReady = (async () => {
-      const schemaPath = path.join(process.cwd(), "src/lib/db/schema.postgres.sql");
-      const schema = fs.readFileSync(schemaPath, "utf8");
-      await pool.query(schema);
+      await pool.query(SCHEMA_SQL);
       const row = await pool.query("SELECT id FROM company WHERE id = 1");
       if (row.rowCount === 0) {
         await pool.query("INSERT INTO company (id) VALUES (1)");
