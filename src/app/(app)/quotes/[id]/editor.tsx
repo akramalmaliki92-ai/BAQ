@@ -379,6 +379,16 @@ export default function QuoteEditor(props: EditorProps) {
           >
             📄 تصدير PDF
           </a>
+          {quote.status === "APPROVED" && (
+            <a
+              href={`/api/quotes/${quote.id}/contract`}
+              target="_blank"
+              className="rounded-xl text-white font-bold text-sm px-4 py-2.5"
+              style={{ background: "var(--brand-dark)" }}
+            >
+              🖋️ تحويل إلى عقد عمل
+            </a>
+          )}
           {editable && (
             <button onClick={doSendForReview} disabled={pending} className="rounded-xl text-white font-bold text-sm px-4 py-2.5" style={{ background: "var(--brand-dark)" }}>
               إرسال للمراجعة
