@@ -44,7 +44,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       }),
     });
     if (!genRes.ok) {
-      throw new Error(`فشل توليد PDF من خدمة api2pdf (رمز ${genRes.status})`);
+      const bodyText = await genRes.text().catch(() => "");
+      console.error("api2pdf error", genRes.status, bodyText);
+      throw new Error(`فشل توليد PDF من خدمة api2pdf (رمز ${genRes.status}): ${bodyText.slice(0, 500)}`);
     }
     const genJson = (await genRes.json()) as { FileUrl?: string; Success?: boolean; Error?: string };
     if (!genJson.FileUrl) {
