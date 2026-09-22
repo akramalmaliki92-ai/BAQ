@@ -15,12 +15,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       >
         <div className="max-w-[1400px] mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-extrabold text-base flex-none"
-              style={{ background: "var(--brand-dark)" }}
-            >
-              بق
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="بيت القصيد" className="h-10 w-auto flex-none" />
             <div>
               <div className="font-extrabold text-sm leading-tight">مسعّر بيت القصيد</div>
               <div className="text-[11px] text-[var(--foreground-muted)] leading-tight">

@@ -5,6 +5,7 @@ import { computeItem, computeQuoteTotals } from "@/lib/pricing/engine";
 import { amountToArabicWords } from "@/lib/pricing/numberToArabicWords";
 import type { QuoteRow, SectionWithItems, PaymentRow } from "@/lib/repo/quotes";
 import type { CompanySettings } from "@/lib/repo/settings";
+import { LOGO_DATA_URI } from "./logoBase64";
 
 function esc(s: string | null | undefined): string {
   return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -106,6 +107,8 @@ export function buildQuoteHtml(
     display: flex; justify-content: space-between; align-items: flex-start;
     border-bottom: 3px solid #74816F; padding-bottom: 14px; margin-bottom: 18px;
   }
+  .header-brand { display: flex; align-items: center; gap: 12px; }
+  .header-logo { height: 42px; width: auto; flex: none; }
   .company-name { font-weight: 800; font-size: 16px; }
   .company-line { font-size: 10.5px; color: #6b7264; margin-top: 3px; line-height: 1.7; }
   .doc-title { text-align: left; }
@@ -163,9 +166,12 @@ export function buildQuoteHtml(
 <body>
   ${isDraft ? `<div class="watermark">مسودة</div>` : ""}
   <div class="header">
-    <div>
-      <div class="company-name">${esc(company.name_ar)}</div>
-      <div class="company-line">${esc(company.address)}<br>${esc(company.website)} · ${esc(company.email)} · ${esc(company.phone)}</div>
+    <div class="header-brand">
+      <img class="header-logo" src="${LOGO_DATA_URI}" alt="بيت القصيد" />
+      <div>
+        <div class="company-name">${esc(company.name_ar)}</div>
+        <div class="company-line">${esc(company.address)}<br>${esc(company.website)} · ${esc(company.email)} · ${esc(company.phone)}</div>
+      </div>
     </div>
     <div class="doc-title">
       <div class="kind">عرض سعر${isDraft ? " — مسودة" : ""}</div>

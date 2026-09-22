@@ -924,7 +924,8 @@ function DocumentPreview({
         )}
         <div className="relative flex items-start justify-between border-b-2 pb-4 mb-5 flex-wrap gap-3" style={{ borderColor: "var(--brand-dark)" }}>
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-extrabold" style={{ background: "var(--brand-dark)" }}>بق</div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="بيت القصيد" className="h-11 w-auto flex-none" />
             <div>
               <div className="font-extrabold">{company.name_ar}</div>
               <div className="text-[11px] text-[var(--foreground-muted)]">{company.address} · {company.phone} · {company.email}</div>

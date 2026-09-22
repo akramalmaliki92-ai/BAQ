@@ -12,12 +12,8 @@ export default function LoginPage() {
     <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ background: "var(--brand-light)" }}>
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6 gap-3">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl shadow"
-            style={{ background: "var(--brand-dark)" }}
-          >
-            بق
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="بيت القصيد" className="h-16 w-auto" />
           <div className="text-center">
             <div className="font-extrabold text-xl text-[var(--foreground)]">مسعّر بيت القصيد</div>
             <div className="text-sm text-[var(--foreground-muted)]">تسجيل الدخول للمتابعة</div>
