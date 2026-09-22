@@ -18,7 +18,7 @@ interface UserRow {
 
 export async function findUserByEmail(email: string): Promise<UserRow | undefined> {
   return (await db
-    .prepare("SELECT * FROM users WHERE email = ? COLLATE NOCASE")
+    .prepare("SELECT * FROM users WHERE LOWER(email) = LOWER(?)")
     .get(email)) as unknown as UserRow | undefined;
 }
 
