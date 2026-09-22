@@ -13,6 +13,7 @@ interface Item {
 const ITEMS: Item[] = [
   { href: "/dashboard", label: "لوحة التحكم" },
   { href: "/quotes", label: "عروض الأسعار" },
+  { href: "/contracts", label: "العقود" },
   { href: "/clients", label: "العملاء" },
   { href: "/projects", label: "المشاريع" },
   { href: "/library", label: "مكتبة الفقرات" },
