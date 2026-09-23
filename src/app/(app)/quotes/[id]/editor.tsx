@@ -34,7 +34,7 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_COLOR: Record<string, string> = {
   DRAFT: "#8a8a8a", IN_REVIEW: "#b8860b", NEEDS_REVISION: "#c0552f", APPROVED: "#2f7d4f", CANCELLED: "#a3402f",
 };
-const UNITS = ["متر طولي", "متر مربع", "متر مكعب", "عدد", "نقطة", "مقطوعية", "يوم", "ساعة", "طن", "كيلوغرام"];
+const UNITS = ["متر طولي", "متر مربع", "متر مكعب", "عدد", "نقطةقطعي", "يوم", "ساعة", "طن", "كيلوغرام"];
 
 function fmt(n: number) {
   return Math.round(n || 0).toLocaleString("en-US");
