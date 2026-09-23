@@ -23,8 +23,9 @@ export function canEditMarginOrDiscount(role: Role): boolean {
   return role === "ADMIN" || role === "MANAGER";
 }
 
-export function canManageLibraryAndSettings(role: Role): boolean {
-  return role === "ADMIN";
+// إدارة مكتبة الفقرات (إضافة/تعديل فقرة، الكلفة، هامش الربح) — متاحة لمسؤول النظام والمدير
+export function canManageLibrary(role: Role): boolean {
+  return role === "ADMIN" || role === "MANAGER";
 }
 
 export function canManageUsers(role: Role): boolean {
