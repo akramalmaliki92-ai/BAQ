@@ -102,10 +102,10 @@ export function buildQuoteHtml(
     margin: 0;
     padding: 28px 34px;
   }
-  .brand-dark { color: #74816F; }
+  .brand-dark { color: #EF9C3D; }
   .header {
     display: flex; justify-content: space-between; align-items: flex-start;
-    border-bottom: 3px solid #74816F; padding-bottom: 14px; margin-bottom: 18px;
+    border-bottom: 3px solid #EF9C3D; padding-bottom: 14px; margin-bottom: 18px;
   }
   .header-brand { display: flex; align-items: center; gap: 12px; }
   .header-logo { height: 42px; width: auto; flex: none; }
@@ -135,9 +135,9 @@ export function buildQuoteHtml(
   .section-sub { text-align: left; font-size: 11px; color: #6b7264; margin-top: 3px; }
   .section-sub b { color: #21261f; }
 
-  .totals-box { background: #F6E8D2; border-radius: 10px; padding: 14px 18px; margin-top: 12px; page-break-inside: avoid; }
+  .totals-box { background: #FDF0E0; border-radius: 10px; padding: 14px 18px; margin-top: 12px; page-break-inside: avoid; }
   .totals-box .row { display: flex; justify-content: space-between; font-size: 11.5px; padding: 2px 0; }
-  .totals-box .row.final { font-size: 15px; font-weight: 800; color: #74816F; border-top: 1px dashed #e2cfa8; margin-top: 6px; padding-top: 8px; }
+  .totals-box .row.final { font-size: 15px; font-weight: 800; color: #EF9C3D; border-top: 1px dashed #e2cfa8; margin-top: 6px; padding-top: 8px; }
   .totals-box .words { font-size: 10.5px; margin-top: 6px; color: #5c5238; }
 
   .pay-title { font-weight: 800; font-size: 12px; margin: 16px 0 6px; }
@@ -154,7 +154,7 @@ export function buildQuoteHtml(
   .sign-grid .box { flex: 1; border-top: 1px solid #8a8a8a; padding-top: 6px; font-size: 10.5px; text-align: center; color: #4a5148; }
   .watermark {
     position: fixed; top: 40%; left: 0; right: 0; text-align: center;
-    font-size: 90px; font-weight: 800; color: #74816F; opacity: 0.09;
+    font-size: 90px; font-weight: 800; color: #EF9C3D; opacity: 0.09;
     transform: rotate(-28deg); pointer-events: none; z-index: 0;
   }
   .doc-footer {
