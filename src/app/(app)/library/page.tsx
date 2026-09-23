@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requirePageUser } from "@/lib/auth/guard";
 import { listLibraryItems, listCategories } from "@/lib/repo/library";
 import ToggleButton from "./toggle-button";
+import { canManageLibrary } from "@/lib/auth/types";
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString("en-US");
@@ -14,9 +15,9 @@ export default async function LibraryPage({
 }) {
   const user = await requirePageUser();
   const { q, cat } = await searchParams;
-  const items = await listLibraryItems({ search: q, mainCategory: cat, includeInactive: user.role === "ADMIN" });
+  const items = await listLibraryItems({ search: q, mainCategory: cat, includeInactive: canManageLibrary(user.role) });
   const categories = await listCategories();
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = canManageLibrary(user.role);
 
   return (
     <div className="flex flex-col gap-5">
