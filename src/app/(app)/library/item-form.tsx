@@ -7,7 +7,7 @@ const initial: LibraryFormState = {};
 const FIELD_CLS =
   "w-full rounded-xl border border-[var(--border)] px-3.5 py-2.5 text-sm outline-none focus:ring-2";
 
-const UNITS = ["متر طولي", "متر مربع", "متر مكعب", "عدد", "نقطة", "مقطوعية", "يوم", "ساعة", "طن", "كيلوغرام"];
+const UNITS = ["متر طولي", "متر مربع", "متر مكعب", "عدد", "قطعي", "مقطوعية", "يوم", "ساعة", "طن", "كيلوغرام"];
 
 export default function LibraryItemForm({
   action,
