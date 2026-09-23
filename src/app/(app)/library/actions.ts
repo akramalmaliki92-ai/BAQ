@@ -24,7 +24,7 @@ function readInput(formData: FormData): LibraryItemInput {
 }
 
 export async function createLibraryItemAction(_prev: LibraryFormState, formData: FormData): Promise<LibraryFormState> {
-  await requireRole(["ADMIN"]);
+  await requireRole(["ADMIN", "MANAGER"]);
   const input = readInput(formData);
   if (!input.name) return { error: "اسم الفقرة مطلوب" };
   await createLibraryItem(input);
@@ -33,7 +33,7 @@ export async function createLibraryItemAction(_prev: LibraryFormState, formData:
 }
 
 export async function updateLibraryItemAction(id: string, _prev: LibraryFormState, formData: FormData): Promise<LibraryFormState> {
-  await requireRole(["ADMIN"]);
+  await requireRole(["ADMIN", "MANAGER"]);
   const input = readInput(formData);
   if (!input.name) return { error: "اسم الفقرة مطلوب" };
   await updateLibraryItem(id, input);
@@ -42,7 +42,7 @@ export async function updateLibraryItemAction(id: string, _prev: LibraryFormStat
 }
 
 export async function toggleLibraryItemAction(id: string, active: boolean): Promise<void> {
-  await requireRole(["ADMIN"]);
+  await requireRole(["ADMIN", "MANAGER"]);
   await setLibraryItemActive(id, active);
   revalidatePath("/library");
 }
