@@ -109,7 +109,7 @@ export function buildContractHtml(
   }
   .header {
     display: flex; justify-content: space-between; align-items: flex-start;
-    border-bottom: 3px solid #74816F; padding-bottom: 14px; margin-bottom: 16px;
+    border-bottom: 3px solid #EF9C3D; padding-bottom: 14px; margin-bottom: 16px;
   }
   .header-brand { display: flex; align-items: center; gap: 12px; }
   .header-logo { height: 42px; width: auto; flex: none; }
@@ -125,7 +125,7 @@ export function buildContractHtml(
 
   .parties { display: flex; gap: 14px; margin-bottom: 16px; }
   .party { flex: 1; border: 1px solid #e6e1d3; border-radius: 10px; padding: 12px 14px; }
-  .party .role { font-weight: 800; font-size: 11.5px; color: #74816F; margin-bottom: 4px; }
+  .party .role { font-weight: 800; font-size: 11.5px; color: #EF9C3D; margin-bottom: 4px; }
   .party .name { font-weight: 800; font-size: 13px; }
   .party .line { font-size: 10.5px; color: #6b7264; margin-top: 4px; line-height: 1.7; }
 
@@ -146,9 +146,9 @@ export function buildContractHtml(
   .section-sub { text-align: left; font-size: 10.5px; color: #6b7264; margin-top: 3px; }
   .section-sub b { color: #21261f; }
 
-  .totals-box { background: #F6E8D2; border-radius: 10px; padding: 14px 18px; margin: 10px 0; page-break-inside: avoid; }
+  .totals-box { background: #FDF0E0; border-radius: 10px; padding: 14px 18px; margin: 10px 0; page-break-inside: avoid; }
   .totals-box .row { display: flex; justify-content: space-between; font-size: 11.5px; padding: 2px 0; }
-  .totals-box .row.final { font-size: 15px; font-weight: 800; color: #74816F; border-top: 1px dashed #e2cfa8; margin-top: 6px; padding-top: 8px; }
+  .totals-box .row.final { font-size: 15px; font-weight: 800; color: #EF9C3D; border-top: 1px dashed #e2cfa8; margin-top: 6px; padding-top: 8px; }
   .totals-box .words { font-size: 10.5px; margin-top: 6px; color: #5c5238; }
 
   table.pay { width: 100%; border-collapse: collapse; }
