@@ -34,7 +34,7 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_COLOR: Record<string, string> = {
   DRAFT: "#8a8a8a", IN_REVIEW: "#b8860b", NEEDS_REVISION: "#c0552f", APPROVED: "#2f7d4f", CANCELLED: "#a3402f",
 };
-const UNITS = ["متر طولي", "متر مربع", "متر مكعب", "عدد", "نقطةقطعي", "يوم", "ساعة", "طن", "كيلوغرام"];
+const UNITS = ["متر طولي", "متر مربع", "متر مكعب", "عدد", "نقطة", "قطعي", "يوم", "ساعة", "طن", "كيلوغرام"];
 
 function fmt(n: number) {
   return Math.round(n || 0).toLocaleString("en-US");
@@ -551,32 +551,43 @@ export default function QuoteEditor(props: EditorProps) {
                               <td className="px-2 py-1.5 bg-[var(--brand-light)]/40">
                                 <input
                                   disabled={!editable}
-                                  type="number" step="any"
-                                  defaultValue={it.unit_cost}
-                                  onChange={(e) => patchItem(s.id, it.id, { unit_cost: Number(e.target.value) || 0 })}
-                                  onBlur={(e) => commitItem(it.id, { unit_cost: Number(e.target.value) || 0 })}
+                                  type="text" inputMode="decimal"
+                                  defaultValue={fmt(it.unit_cost)}
+                                  onFocus={(e) => { e.currentTarget.value = String(it.unit_cost); }}
+                                  onChange={(e) => patchItem(s.id, it.id, { unit_cost: Number(e.target.value.replace(/,/g, "")) || 0 })}
+                                  onBlur={(e) => {
+                                    const v = Number(e.target.value.replace(/,/g, "")) || 0;
+                                    commitItem(it.id, { unit_cost: v });
+                                    e.currentTarget.value = fmt(v);
+                                  }}
                                   className={`${rowInputCls} tabular`}
                                 />
                               </td>
                               <td className="px-2 py-1.5 bg-[var(--brand-light)]/40">
-                                <input
-                                  disabled={!editable}
-                                  type="number" step="any"
-                                  defaultValue={it.margin_pct}
-                                  onChange={(e) => patchItem(s.id, it.id, { margin_pct: Number(e.target.value) || 0 })}
-                                  onBlur={(e) => commitItem(it.id, { margin_pct: Number(e.target.value) || 0 })}
-                                  className={`${rowInputCls} tabular`}
-                                />
+                                <div className="flex items-center gap-0.5">
+                                  <input
+                                    disabled={!editable}
+                                    type="number" step="any"
+                                    defaultValue={it.margin_pct}
+                                    onChange={(e) => patchItem(s.id, it.id, { margin_pct: Number(e.target.value) || 0 })}
+                                    onBlur={(e) => commitItem(it.id, { margin_pct: Number(e.target.value) || 0 })}
+                                    className={`${rowInputCls} tabular`}
+                                  />
+                                  <span className="text-[10px] text-[var(--foreground-muted)] shrink-0">٪</span>
+                                </div>
                               </td>
                               <td className="px-2 py-1.5 tabular font-bold">
                                 {editable && canDiscount ? (
                                   <input
-                                    type="number" step="any"
-                                    defaultValue={it.manual_unit_price ?? c.unitPrice}
+                                    type="text" inputMode="decimal"
+                                    defaultValue={fmt(it.manual_unit_price ?? c.unitPrice)}
+                                    onFocus={(e) => { e.currentTarget.value = String(it.manual_unit_price ?? c.unitPrice); }}
                                     onBlur={(e) => {
-                                      const v = e.target.value === "" ? null : Number(e.target.value);
+                                      const raw = e.target.value.replace(/,/g, "").trim();
+                                      const v = raw === "" ? null : Number(raw);
                                       patchItem(s.id, it.id, { manual_unit_price: v });
                                       commitItem(it.id, { manual_unit_price: v });
+                                      e.currentTarget.value = fmt(v ?? c.unitPrice);
                                     }}
                                     className={`${rowInputCls} tabular`}
                                     title="تعديل يدوي للسعر (يتجاوز الحساب التلقائي)"
