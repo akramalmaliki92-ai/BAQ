@@ -5,7 +5,7 @@ import LibraryItemForm from "../../item-form";
 import { updateLibraryItemAction } from "../../actions";
 
 export default async function EditLibraryItemPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePageRole(["ADMIN"]);
+  await requirePageRole(["ADMIN", "MANAGER"]);
   const { id } = await params;
   const item = await getLibraryItem(id);
   if (!item) notFound();
