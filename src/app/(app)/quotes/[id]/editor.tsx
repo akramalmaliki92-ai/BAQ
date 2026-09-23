@@ -505,23 +505,29 @@ export default function QuoteEditor(props: EditorProps) {
                             <tr key={it.id} className="border-b border-[var(--border)] last:border-0">
                               <td className="px-2 py-1.5 text-[var(--foreground-muted)] tabular">{ii + 1}</td>
                               <td className="px-2 py-1.5">
-                                <input
-                                  disabled={!editable}
-                                  defaultValue={it.name}
-                                  onBlur={(e) => { patchItem(s.id, it.id, { name: e.target.value }); commitItem(it.id, { name: e.target.value }); }}
-                                  className={rowInputCls}
-                                  placeholder="اسم الفقرة"
-                                />
+                                <textarea
+                                                                    disabled={!editable}
+                                                                    defaultValue={it.name}
+                                                                    onBlur={(e) => { patchItem(s.id, it.id, { name: e.target.value }); commitItem(it.id, { name: e.target.value }); }}
+                                                                    ref={autoGrowTextarea}
+                                                                    onInput={(e) => autoGrowTextarea(e.currentTarget)}
+                                                                    rows={1}
+                                                                    className={rowTextareaCls}
+                                                                    placeholder="اسم الفقرة"
+                                                                  />
                               </td>
                               <td className="px-2 py-1.5">
-                                <input
-                                  disabled={!editable}
-                                  defaultValue={it.description}
-                                  onBlur={(e) => { patchItem(s.id, it.id, { description: e.target.value }); commitItem(it.id, { description: e.target.value }); }}
-                                  className={rowInputCls}
-                                  placeholder="مثال: مواد + عمل الجبسوم بورد على هيكل حديدي 40×40"
-                                  title={it.description}
-                                />
+<textarea
+  disabled={!editable}
+  defaultValue={it.description}
+  onBlur={(e) => { patchItem(s.id, it.id, { description: e.target.value }); commitItem(it.id, { description: e.target.value }); }}
+  ref={autoGrowTextarea}
+  onInput={(e) => autoGrowTextarea(e.currentTarget)}
+  rows={1}
+  className={rowTextareaCls}
+  placeholder="مثال: مواد + عمل الجبسوم بورد على هيكل حديدي 40×40"
+  title={it.description}
+  />
                               </td>
                               <td className="px-2 py-1.5">
                                 <input
@@ -789,6 +795,13 @@ export default function QuoteEditor(props: EditorProps) {
 
 const inputCls = "w-full rounded-xl border border-[var(--border)] px-3 py-2 text-sm outline-none focus:ring-2 disabled:opacity-60 disabled:bg-[var(--surface-muted)]";
 const rowInputCls = "w-full rounded-lg border border-transparent hover:border-[var(--border)] focus:border-[var(--brand-dark)] px-1.5 py-1 text-xs outline-none disabled:opacity-70 bg-transparent focus:bg-white";
+// الفقرة والتفاصيل قد تحتويان نصاً طويلاً (وصف كامل من تندر مثلاً) — نستخدم textarea تتمدد ارتفاعها تلقائياً حسب المحتوى بدل input بسطر واحد يقصّ النص ويجعله غير قابل للقراءة.
+const rowTextareaCls = `${rowInputCls} resize-none overflow-hidden leading-snug`;
+function autoGrowTextarea(el: HTMLTextAreaElement | null) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
 
 function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (
