@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { canEditMarginOrDiscount, canApprove, roleLabel } from "@/lib/auth/types";
-import { computeItem, computeQuoteTotals, computeUnitPrice } from "@/lib/pricing/engine";
+import { computeItem, computeQuoteTotals, computeUnitPrice, distributeOverheadByItem } from "@/lib/pricing/engine";
 import { amountToArabicWords } from "@/lib/pricing/numberToArabicWords";
 import type { EditorProps } from "./editor-types";
 import {
@@ -57,6 +57,7 @@ export default function QuoteEditor(props: EditorProps) {
     tax_enabled: !!quote.tax_enabled,
     tax_pct: quote.tax_pct,
     hide_unit_price: !!quote.hide_unit_price,
+    distribute_overhead: !!quote.distribute_overhead,
   });
   const [pay, setPay] = useState(payments.map((p) => ({ label: p.label, pct: p.pct })));
   const [overhead, setOverhead] = useState(
@@ -318,6 +319,14 @@ export default function QuoteEditor(props: EditorProps) {
   }
   const overheadTotal = overhead.reduce((s, o) => s + (Number(o.days) || 0) * (Number(o.daily_rate) || 0), 0);
 
+  // حصة كل فقرة من مصاريف المشروع الداخلية (عند تفعيل خيار التوزيع) — بالتناسب مع سعر بيعها.
+  // داخلي فقط: لا يمس سعر الوحدة أو المجموع الذي يراه العميل إطلاقاً.
+  const overheadShares = useMemo(() => {
+    if (!meta.distribute_overhead || overheadTotal <= 0) return {} as Record<string, number>;
+    const withSale = flatItems.map((it) => ({ id: it.id, saleTotal: computeItem(it).saleTotal }));
+    return distributeOverheadByItem(withSale, overheadTotal);
+  }, [flatItems, overheadTotal, meta.distribute_overhead]);
+
   function doSendForReview() {
     if (!confirm("إرسال عرض السعر إلى المدير للمراجعة؟ لن تتمكن من تعديله حتى يعاد إليك أو يُعتمد.")) return;
     startTransition(async () => {
@@ -493,7 +502,7 @@ export default function QuoteEditor(props: EditorProps) {
                           <th className="px-2 py-2 text-right font-bold w-20 bg-[var(--brand-light)]">الربح % *</th>
                           <th className="px-2 py-2 text-right font-bold w-24">سعر الوحدة</th>
                           <th className="px-2 py-2 text-right font-bold w-28">المجموع</th>
-                          <th className="px-2 py-2 text-right font-bold w-24 bg-[var(--brand-light)]">الربح *</th>
+                          <th className="px-2 py-2 text-right font-bold w-24 bg-[var(--brand-light)]" title={meta.distribute_overhead ? "شامل حصة الفقرة من مصاريف المشروع الداخلية" : undefined}>{meta.distribute_overhead ? "الربح بعد المصاريف *" : "الربح *"}</th>
                           <th className="px-2 py-2 text-right font-bold w-10">إخفاء</th>
                           <th className="px-2 py-2 w-24"></th>
                         </tr>
@@ -501,6 +510,7 @@ export default function QuoteEditor(props: EditorProps) {
                       <tbody>
                         {s.items.map((it, ii) => {
                           const c = computeItem({ id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price });
+                          const ovhShare = meta.distribute_overhead ? (overheadShares[it.id] || 0) : 0;
                           return (
                             <tr key={it.id} className="border-b border-[var(--border)] last:border-0">
                               <td className="px-2 py-1.5 text-[var(--foreground-muted)] tabular">{ii + 1}</td>
@@ -597,7 +607,7 @@ export default function QuoteEditor(props: EditorProps) {
                                 )}
                               </td>
                               <td className="px-2 py-1.5 tabular font-bold">{fmt(c.saleTotal)}</td>
-                              <td className="px-2 py-1.5 tabular bg-[var(--brand-light)]/40">{fmt(c.profitTotal)}</td>
+                              <td className="px-2 py-1.5 tabular bg-[var(--brand-light)]/40" title={ovhShare > 0 ? `يشمل حصة من المصاريف: ${fmt(ovhShare)}` : undefined}>{fmt(c.profitTotal - ovhShare)}</td>
                               <td className="px-2 py-1.5 text-center">
                                 <input
                                   disabled={!editable}
@@ -766,6 +776,18 @@ export default function QuoteEditor(props: EditorProps) {
               ) : <span />}
               <div className="text-sm font-bold">إجمالي المصاريف: <span className="tabular">{fmt(overheadTotal)}</span></div>
             </div>
+            <label className="flex items-center gap-2 text-xs font-bold cursor-pointer pt-1 border-t border-[var(--border)]">
+              <input
+                disabled={!editable}
+                type="checkbox"
+                defaultChecked={meta.distribute_overhead}
+                onChange={(e) => persistMeta({ distribute_overhead: e.target.checked })}
+              />
+              توزيع هذه المصاريف على الفقرات (داخلي فقط — لا يغيّر سعر العميل)
+            </label>
+            <div className="text-[11px] text-[var(--foreground-muted)] -mt-1.5">
+              عند التفعيل تُوزَّع المصاريف على الفقرات بالتناسب مع سعر بيع كل فقرة، وتُخصم من ربحها الداخلي فقط — سعر الوحدة والمجموع الذي يراه العميل لا يتغيران إطلاقاً.
+            </div>
           </div>
 
           <TotalsSummary totals={totals} currency={quote.currency} overheadTotal={overheadTotal} />
@@ -796,6 +818,8 @@ export default function QuoteEditor(props: EditorProps) {
           company={company}
           internal={tab === "internal"}
           hideUnitPrice={meta.hide_unit_price}
+          distributeOverhead={meta.distribute_overhead}
+          overheadShares={overheadShares}
         />
       )}
 
@@ -931,10 +955,11 @@ function ReviewActions({
 }
 
 function DocumentPreview({
-  quote, sections, pay, totals, company, internal, hideUnitPrice,
+  quote, sections, pay, totals, company, internal, hideUnitPrice, distributeOverhead, overheadShares,
 }: {
   quote: EditorProps["quote"]; sections: EditorProps["sections"]; pay: { label: string; pct: number }[];
   totals: ReturnType<typeof computeQuoteTotals>; company: EditorProps["company"]; internal: boolean; hideUnitPrice: boolean;
+  distributeOverhead?: boolean; overheadShares?: Record<string, number>;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -999,12 +1024,13 @@ function DocumentPreview({
                     {!hideUnitPrice && <th className="text-right font-bold px-2 py-1.5">سعر الوحدة</th>}
                     <th className="text-right font-bold px-2 py-1.5">المبلغ الإجمالي</th>
                     {internal && <th className="text-right font-bold px-2 py-1.5 bg-[var(--brand-light)]">الكلفة</th>}
-                    {internal && <th className="text-right font-bold px-2 py-1.5 bg-[var(--brand-light)]">الربح</th>}
+                    {internal && <th className="text-right font-bold px-2 py-1.5 bg-[var(--brand-light)]">{distributeOverhead ? "الربح بعد المصاريف" : "الربح"}</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {visibleItems.map((it, ii) => {
                     const c = computeItem({ id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price });
+                    const ovhShare = distributeOverhead ? (overheadShares?.[it.id] || 0) : 0;
                     return (
                       <tr key={it.id} className="border-b border-[var(--border)]">
                         <td className="px-2 py-1.5 tabular">{ii + 1}</td>
@@ -1015,7 +1041,7 @@ function DocumentPreview({
                         {!hideUnitPrice && <td className="px-2 py-1.5 tabular">{fmt(c.unitPrice)}</td>}
                         <td className="px-2 py-1.5 tabular font-bold">{fmt(c.saleTotal)}</td>
                         {internal && <td className="px-2 py-1.5 tabular bg-[var(--brand-light)]/30">{fmt(c.costTotal)}</td>}
-                        {internal && <td className="px-2 py-1.5 tabular bg-[var(--brand-light)]/30">{fmt(c.profitTotal)}</td>}
+                        {internal && <td className="px-2 py-1.5 tabular bg-[var(--brand-light)]/30">{fmt(c.profitTotal - ovhShare)}</td>}
                       </tr>
                     );
                   })}
