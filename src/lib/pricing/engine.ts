@@ -94,3 +94,22 @@ export function computeQuoteTotals(
 export function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
+
+// يوزّع مبلغ مصاريف المشروع الداخلية (overhead) على الفقرات بالتناسب مع سعر بيع كل فقرة،
+// لأغراض العرض الداخلي فقط (الكلفة/الربح الداخلي) — لا يغيّر إطلاقاً سعر الوحدة أو
+// المجموع الذي يراه العميل. يرجع خريطة: معرف الفقرة → حصتها من المصاريف.
+export function distributeOverheadByItem(
+  items: { id: string; saleTotal: number }[],
+  overheadTotal: number
+): Record<string, number> {
+  const shares: Record<string, number> = {};
+  const sumSale = items.reduce((s, it) => s + it.saleTotal, 0);
+  if (overheadTotal <= 0 || sumSale <= 0) {
+    for (const it of items) shares[it.id] = 0;
+    return shares;
+  }
+  for (const it of items) {
+    shares[it.id] = round2((overheadTotal * it.saleTotal) / sumSale);
+  }
+  return shares;
+}
