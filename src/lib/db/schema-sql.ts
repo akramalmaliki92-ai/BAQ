@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS quotes (
   tax_pct REAL NOT NULL DEFAULT 0,
   min_margin_pct REAL,
   hide_unit_price INTEGER NOT NULL DEFAULT 0,
+  distribute_overhead INTEGER NOT NULL DEFAULT 0,
   approved_by TEXT REFERENCES users(id),
   approved_at TEXT,
   revision_note TEXT,
