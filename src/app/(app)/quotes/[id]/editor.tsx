@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { canEditMarginOrDiscount, canApprove, roleLabel } from "@/lib/auth/types";
-import { computeItem, computeQuoteTotals, computeUnitPrice, distributeOverheadByItem } from "@/lib/pricing/engine";
+import { computeItem, computeQuoteTotals, computeUnitPrice, applyOverheadToItems, type PricingItem } from "@/lib/pricing/engine";
 import { amountToArabicWords } from "@/lib/pricing/numberToArabicWords";
 import type { EditorProps } from "./editor-types";
 import {
@@ -87,16 +87,33 @@ export default function QuoteEditor(props: EditorProps) {
     [sections]
   );
 
+  // مصاريف ونفقات المشروع الداخلية (الإجمالي).
+  const overheadTotal = overhead.reduce((s, o) => s + (Number(o.days) || 0) * (Number(o.daily_rate) || 0), 0);
+
+  // عند تفعيل خيار "توزيع المصاريف"، تُضاف حصة كل فقرة من المصاريف إلى كلفتها فعلياً (وإلى سعرها اليدوي
+  // إن وُجد)، فترتفع كلفتها وسعر بيعها تبعاً لذلك — وبالتالي يرتفع السعر النهائي وقيمة العقد فعلياً،
+  // وليس عرضاً داخلياً فقط. هذه المصفوفة الفعّالة تحل محل flatItems في كل مكان يُحسب فيه السعر المعروض.
+  const effectiveFlatItems = useMemo(() => {
+    if (!meta.distribute_overhead || overheadTotal <= 0) return flatItems;
+    return applyOverheadToItems(flatItems, overheadTotal);
+  }, [flatItems, overheadTotal, meta.distribute_overhead]);
+
+  const effectiveItemsById = useMemo(() => {
+    const map: Record<string, PricingItem> = {};
+    for (const it of effectiveFlatItems) map[it.id] = it;
+    return map;
+  }, [effectiveFlatItems]);
+
   const totals = useMemo(
     () =>
       computeQuoteTotals(
-        flatItems,
+        effectiveFlatItems,
         { type: meta.discount_type, value: Number(meta.discount_value) || 0 },
         meta.tax_enabled,
         Number(meta.tax_pct) || 0,
         quote.min_margin_pct ?? company.min_margin_pct
       ),
-    [flatItems, meta, quote.min_margin_pct, company.min_margin_pct]
+    [effectiveFlatItems, meta, quote.min_margin_pct, company.min_margin_pct]
   );
 
   function persistMeta(patch: Partial<typeof meta>) {
@@ -317,16 +334,6 @@ export default function QuoteEditor(props: EditorProps) {
     setOverhead(next);
     startTransition(() => setOverheadCostsAction(quote.id, next).catch((e) => alert(e.message)));
   }
-  const overheadTotal = overhead.reduce((s, o) => s + (Number(o.days) || 0) * (Number(o.daily_rate) || 0), 0);
-
-  // حصة كل فقرة من مصاريف المشروع الداخلية (عند تفعيل خيار التوزيع) — بالتناسب مع سعر بيعها.
-  // داخلي فقط: لا يمس سعر الوحدة أو المجموع الذي يراه العميل إطلاقاً.
-  const overheadShares = useMemo(() => {
-    if (!meta.distribute_overhead || overheadTotal <= 0) return {} as Record<string, number>;
-    const withSale = flatItems.map((it) => ({ id: it.id, saleTotal: computeItem(it).saleTotal }));
-    return distributeOverheadByItem(withSale, overheadTotal);
-  }, [flatItems, overheadTotal, meta.distribute_overhead]);
-
   function doSendForReview() {
     if (!confirm("إرسال عرض السعر إلى المدير للمراجعة؟ لن تتمكن من تعديله حتى يعاد إليك أو يُعتمد.")) return;
     startTransition(async () => {
@@ -468,7 +475,16 @@ export default function QuoteEditor(props: EditorProps) {
           <div className="flex flex-col gap-4">
             {sections.map((s, si) => {
               const st = computeQuoteTotals(
-                s.items.map((it) => ({ id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price })),
+                s.items.map(
+                  (it) =>
+                    effectiveItemsById[it.id] ?? {
+                      id: it.id,
+                      qty: it.qty,
+                      unitCost: it.unit_cost,
+                      marginPct: it.margin_pct,
+                      manualUnitPrice: it.manual_unit_price,
+                    }
+                ),
                 { type: "PERCENT", value: 0 },
                 false,
                 0,
@@ -502,15 +518,20 @@ export default function QuoteEditor(props: EditorProps) {
                           <th className="px-2 py-2 text-right font-bold w-20 bg-[var(--brand-light)]">الربح % *</th>
                           <th className="px-2 py-2 text-right font-bold w-24">سعر الوحدة</th>
                           <th className="px-2 py-2 text-right font-bold w-28">المجموع</th>
-                          <th className="px-2 py-2 text-right font-bold w-24 bg-[var(--brand-light)]" title={meta.distribute_overhead ? "شامل حصة الفقرة من مصاريف المشروع الداخلية" : undefined}>{meta.distribute_overhead ? "الربح بعد المصاريف *" : "الربح *"}</th>
+                          <th className="px-2 py-2 text-right font-bold w-24 bg-[var(--brand-light)]" title={meta.distribute_overhead ? "شامل حصة الفقرة من مصاريف المشروع بعد توزيعها على الكلفة" : undefined}>الربح *</th>
                           <th className="px-2 py-2 text-right font-bold w-10">إخفاء</th>
                           <th className="px-2 py-2 w-24"></th>
                         </tr>
                       </thead>
                       <tbody>
                         {s.items.map((it, ii) => {
-                          const c = computeItem({ id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price });
-                          const ovhShare = meta.distribute_overhead ? (overheadShares[it.id] || 0) : 0;
+                          // raw: الحساب من القيم المخزّنة كما هي (بدون توزيع المصاريف) — تُستخدم كأساس لحقل
+                          // تعديل السعر اليدوي حتى لا يُخزَّن السعر المحمَّل بالمصاريف بشكل دائم عند أي blur عرضي.
+                          const raw = computeItem({ id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price });
+                          // c: الحساب الفعّال (شامل حصة الفقرة من المصاريف إن كان التوزيع مفعّلاً) — يُستخدم لعرض
+                          // سعر الوحدة والمجموع والربح، وهو ما يظهر فعلياً في العقد والـPDF عند تفعيل الخيار.
+                          const eff = effectiveItemsById[it.id];
+                          const c = eff ? computeItem(eff) : raw;
                           return (
                             <tr key={it.id} className="border-b border-[var(--border)] last:border-0">
                               <td className="px-2 py-1.5 text-[var(--foreground-muted)] tabular">{ii + 1}</td>
@@ -590,24 +611,24 @@ export default function QuoteEditor(props: EditorProps) {
                                 {editable && canDiscount ? (
                                   <input
                                     type="text" inputMode="decimal"
-                                    defaultValue={fmt(it.manual_unit_price ?? c.unitPrice)}
-                                    onFocus={(e) => { e.currentTarget.value = String(it.manual_unit_price ?? c.unitPrice); }}
+                                    defaultValue={fmt(it.manual_unit_price ?? raw.unitPrice)}
+                                    onFocus={(e) => { e.currentTarget.value = String(it.manual_unit_price ?? raw.unitPrice); }}
                                     onBlur={(e) => {
-                                      const raw = e.target.value.replace(/,/g, "").trim();
-                                      const v = raw === "" ? null : Number(raw);
+                                      const txt = e.target.value.replace(/,/g, "").trim();
+                                      const v = txt === "" ? null : Number(txt);
                                       patchItem(s.id, it.id, { manual_unit_price: v });
                                       commitItem(it.id, { manual_unit_price: v });
-                                      e.currentTarget.value = fmt(v ?? c.unitPrice);
+                                      e.currentTarget.value = fmt(v ?? raw.unitPrice);
                                     }}
                                     className={`${rowInputCls} tabular`}
-                                    title="تعديل يدوي للسعر (يتجاوز الحساب التلقائي)"
+                                    title="تعديل يدوي للسعر (يتجاوز الحساب التلقائي) — القيمة المعروضة هنا قبل إضافة المصاريف الموزَّعة"
                                   />
                                 ) : (
                                   fmt(c.unitPrice)
                                 )}
                               </td>
                               <td className="px-2 py-1.5 tabular font-bold">{fmt(c.saleTotal)}</td>
-                              <td className="px-2 py-1.5 tabular bg-[var(--brand-light)]/40" title={ovhShare > 0 ? `يشمل حصة من المصاريف: ${fmt(ovhShare)}` : undefined}>{fmt(c.profitTotal - ovhShare)}</td>
+                              <td className="px-2 py-1.5 tabular bg-[var(--brand-light)]/40" title={meta.distribute_overhead && eff ? "شامل حصة الفقرة من المصاريف بعد توزيعها على الكلفة" : undefined}>{fmt(c.profitTotal)}</td>
                               <td className="px-2 py-1.5 text-center">
                                 <input
                                   disabled={!editable}
@@ -783,14 +804,14 @@ export default function QuoteEditor(props: EditorProps) {
                 defaultChecked={meta.distribute_overhead}
                 onChange={(e) => persistMeta({ distribute_overhead: e.target.checked })}
               />
-              توزيع هذه المصاريف على الفقرات (داخلي فقط — لا يغيّر سعر العميل)
+              توزيع هذه المصاريف على كلف الفقرات (يرفع السعر النهائي وقيمة العقد)
             </label>
             <div className="text-[11px] text-[var(--foreground-muted)] -mt-1.5">
-              عند التفعيل تُوزَّع المصاريف على الفقرات بالتناسب مع سعر بيع كل فقرة، وتُخصم من ربحها الداخلي فقط — سعر الوحدة والمجموع الذي يراه العميل لا يتغيران إطلاقاً.
+              عند التفعيل تُضاف هذه المصاريف إلى كلفة كل فقرة بالتناسب مع سعر بيعها، فترتفع كلفتها وسعر بيعها تبعاً لذلك — وبالتالي يرتفع سعر الوحدة والمجموع الذي يراه العميل، والسعر النهائي للعرض، وقيمة العقد، وكل التفاصيل المرتبطة بهما. عند إيقاف الخيار تبقى هذه المصاريف للاطلاع الداخلي فقط دون أي أثر على الأسعار.
             </div>
           </div>
 
-          <TotalsSummary totals={totals} currency={quote.currency} overheadTotal={overheadTotal} />
+          <TotalsSummary totals={totals} currency={quote.currency} overheadTotal={overheadTotal} distributeOverhead={meta.distribute_overhead} />
 
           {/* إجراءات دورة المراجعة */}
           <ReviewActions
@@ -818,8 +839,7 @@ export default function QuoteEditor(props: EditorProps) {
           company={company}
           internal={tab === "internal"}
           hideUnitPrice={meta.hide_unit_price}
-          distributeOverhead={meta.distribute_overhead}
-          overheadShares={overheadShares}
+          itemsById={effectiveItemsById}
         />
       )}
 
@@ -882,10 +902,12 @@ function LibraryPicker({
 }
 
 function TotalsSummary({
-  totals, currency, overheadTotal,
-}: { totals: ReturnType<typeof computeQuoteTotals>; currency: string; overheadTotal?: number }) {
+  totals, currency, overheadTotal, distributeOverhead,
+}: { totals: ReturnType<typeof computeQuoteTotals>; currency: string; overheadTotal?: number; distributeOverhead?: boolean }) {
   const ovh = overheadTotal || 0;
-  const netProfit = totals.profitAfterDiscount - ovh;
+  // عند تفعيل التوزيع تكون المصاريف مُضافة فعلياً إلى الكلفة ضمن totals، فـ"الربح المتوقع" أعلاه صافٍ
+  // منها فعلاً — لا داعي لخصمها مرة ثانية. عند إيقاف التوزيع لا تزال ضمن الكلفة، فنعرضها كـ"ماذا لو" فقط.
+  const netProfitIfDistributed = totals.profitAfterDiscount - ovh;
   return (
     <div className="bg-white rounded-2xl border border-[var(--border)] p-5 flex flex-col gap-1.5">
       <div className="font-bold text-sm mb-1">الملخص المالي (داخلي)</div>
@@ -897,10 +919,16 @@ function TotalsSummary({
       <Row l="الربح المتوقع بعد الخصم" v={fmt(totals.profitAfterDiscount)} good />
       <Row l="نسبة الربح الفعلية بعد الخصم" v={`${totals.effectiveMarginPct}%`} good={!totals.belowMinMargin} bad={totals.belowMinMargin} />
       {ovh > 0 && (
-        <>
-          <Row l="مصاريف ونفقات المشروع (الإشراف ونحوه)" v={fmt(ovh)} />
-          <Row l="صافي الربح بعد المصاريف" v={fmt(netProfit)} good={netProfit >= 0} bad={netProfit < 0} />
-        </>
+        distributeOverhead ? (
+          <div className="text-[11px] text-[var(--foreground-muted)] rounded-lg px-2.5 py-2 bg-[var(--surface-muted)]">
+            مصاريف ونفقات المشروع ({fmt(ovh)}) مُوزَّعة ضمن كلفة الفقرات أعلاه، ومُحتسَبة فعلياً في السعر النهائي وقيمة العقد.
+          </div>
+        ) : (
+          <>
+            <Row l="مصاريف ونفقات المشروع (غير مُوزَّعة على السعر)" v={fmt(ovh)} />
+            <Row l="صافي الربح لو فُعّل التوزيع" v={fmt(netProfitIfDistributed)} good={netProfitIfDistributed >= 0} bad={netProfitIfDistributed < 0} />
+          </>
+        )
       )}
       <div className="h-px bg-[var(--border)] my-1" />
       <Row l="المبلغ النهائي" v={`${fmt(totals.finalTotal)} ${currency === "IQD" ? "د.ع" : currency}`} big />
@@ -955,11 +983,13 @@ function ReviewActions({
 }
 
 function DocumentPreview({
-  quote, sections, pay, totals, company, internal, hideUnitPrice, distributeOverhead, overheadShares,
+  quote, sections, pay, totals, company, internal, hideUnitPrice, itemsById,
 }: {
   quote: EditorProps["quote"]; sections: EditorProps["sections"]; pay: { label: string; pct: number }[];
   totals: ReturnType<typeof computeQuoteTotals>; company: EditorProps["company"]; internal: boolean; hideUnitPrice: boolean;
-  distributeOverhead?: boolean; overheadShares?: Record<string, number>;
+  // القيم الفعّالة لكل فقرة (شاملة حصتها من المصاريف الموزَّعة إن كان الخيار مفعّلاً) — هذه هي القيم التي
+  // يجب أن تظهر في سعر الوحدة والمجموع في كلتا نسختي العميل والداخلية، تماماً كما في PDF والعقد.
+  itemsById: Record<string, PricingItem>;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -1009,7 +1039,22 @@ function DocumentPreview({
         {sections.filter((s) => s.items.some((i) => internal || !i.hidden_from_client)).map((s, si) => {
           const visibleItems = s.items.filter((i) => internal || !i.hidden_from_client);
           if (visibleItems.length === 0) return null;
-          const st = computeQuoteTotals(visibleItems.map((it) => ({ id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price })), { type: "PERCENT", value: 0 }, false, 0, 0);
+          const st = computeQuoteTotals(
+            visibleItems.map(
+              (it) =>
+                itemsById[it.id] ?? {
+                  id: it.id,
+                  qty: it.qty,
+                  unitCost: it.unit_cost,
+                  marginPct: it.margin_pct,
+                  manualUnitPrice: it.manual_unit_price,
+                }
+            ),
+            { type: "PERCENT", value: 0 },
+            false,
+            0,
+            0
+          );
           return (
             <div key={s.id} className="mb-5">
               <div className="font-bold text-sm border-b border-[var(--border)] pb-1.5 mb-2">{si + 1}. {s.name}</div>
@@ -1024,13 +1069,13 @@ function DocumentPreview({
                     {!hideUnitPrice && <th className="text-right font-bold px-2 py-1.5">سعر الوحدة</th>}
                     <th className="text-right font-bold px-2 py-1.5">المبلغ الإجمالي</th>
                     {internal && <th className="text-right font-bold px-2 py-1.5 bg-[var(--brand-light)]">الكلفة</th>}
-                    {internal && <th className="text-right font-bold px-2 py-1.5 bg-[var(--brand-light)]">{distributeOverhead ? "الربح بعد المصاريف" : "الربح"}</th>}
+                    {internal && <th className="text-right font-bold px-2 py-1.5 bg-[var(--brand-light)]">الربح</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {visibleItems.map((it, ii) => {
-                    const c = computeItem({ id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price });
-                    const ovhShare = distributeOverhead ? (overheadShares?.[it.id] || 0) : 0;
+                    const eff = itemsById[it.id] ?? { id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price };
+                    const c = computeItem(eff);
                     return (
                       <tr key={it.id} className="border-b border-[var(--border)]">
                         <td className="px-2 py-1.5 tabular">{ii + 1}</td>
@@ -1041,7 +1086,7 @@ function DocumentPreview({
                         {!hideUnitPrice && <td className="px-2 py-1.5 tabular">{fmt(c.unitPrice)}</td>}
                         <td className="px-2 py-1.5 tabular font-bold">{fmt(c.saleTotal)}</td>
                         {internal && <td className="px-2 py-1.5 tabular bg-[var(--brand-light)]/30">{fmt(c.costTotal)}</td>}
-                        {internal && <td className="px-2 py-1.5 tabular bg-[var(--brand-light)]/30">{fmt(c.profitTotal - ovhShare)}</td>}
+                        {internal && <td className="px-2 py-1.5 tabular bg-[var(--brand-light)]/30">{fmt(c.profitTotal)}</td>}
                       </tr>
                     );
                   })}
