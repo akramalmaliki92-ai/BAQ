@@ -26,6 +26,7 @@ export interface QuoteRow {
   tax_pct: number;
   min_margin_pct: number | null;
   hide_unit_price: number;
+  distribute_overhead: number;
   approved_by: string | null;
   approved_at: string | null;
   revision_note: string | null;
@@ -251,6 +252,7 @@ export interface QuoteMetaInput {
   tax_pct?: number;
   min_margin_pct?: number | null;
   hide_unit_price?: boolean;
+  distribute_overhead?: boolean;
 }
 
 const EDITABLE_STATUSES: QuoteStatus[] = ["DRAFT", "NEEDS_REVISION"];
@@ -265,6 +267,8 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
 
   const taxEnabled = input.tax_enabled != null ? (input.tax_enabled ? 1 : 0) : current.tax_enabled;
   const hideUnitPrice = input.hide_unit_price != null ? (input.hide_unit_price ? 1 : 0) : current.hide_unit_price;
+  const distributeOverhead =
+    input.distribute_overhead != null ? (input.distribute_overhead ? 1 : 0) : current.distribute_overhead;
   const merged = {
     title: input.title ?? current.title,
     intro_text: input.intro_text ?? current.intro_text,
@@ -284,7 +288,7 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
   await db.prepare(
     `UPDATE quotes SET title=?, intro_text=?, outro_text=?, issue_date=?, valid_until=?, currency=?,
      execution_duration=?, payment_terms=?, internal_notes=?, discount_type=?, discount_value=?,
-     tax_enabled=?, tax_pct=?, min_margin_pct=?, hide_unit_price=?, updated_at=?
+     tax_enabled=?, tax_pct=?, min_margin_pct=?, hide_unit_price=?, distribute_overhead=?, updated_at=?
      WHERE id=?`
   ).run(
     merged.title,
@@ -302,6 +306,7 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
     Number(merged.tax_pct) || 0,
     merged.min_margin_pct,
     hideUnitPrice,
+    distributeOverhead,
     nowIso(),
     id
   );
