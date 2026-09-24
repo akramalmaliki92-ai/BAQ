@@ -58,6 +58,8 @@ export default function QuoteEditor(props: EditorProps) {
     tax_pct: quote.tax_pct,
     hide_unit_price: !!quote.hide_unit_price,
     distribute_overhead: !!quote.distribute_overhead,
+    contract_type: quote.contract_type,
+    cost_plus_fee_pct: quote.cost_plus_fee_pct,
   });
   const [pay, setPay] = useState(payments.map((p) => ({ label: p.label, pct: p.pct })));
   const [overhead, setOverhead] = useState(
@@ -722,32 +724,65 @@ export default function QuoteEditor(props: EditorProps) {
             </div>
 
             <div className="bg-white rounded-2xl border border-[var(--border)] p-5 flex flex-col gap-3">
-              <div className="font-bold text-sm">نظام الدفعات</div>
-              <table className="w-full text-sm">
-                <tbody>
-                  {pay.map((p, idx) => (
-                    <tr key={idx}>
-                      <td className="py-1 pl-2">
-                        <input disabled={!editable} defaultValue={p.label} onChange={(e) => updatePayLabel(idx, e.target.value)} onBlur={commitPayLabels} className={inputCls} />
-                      </td>
-                      <td className="py-1 pl-2 w-24">
-                        <input disabled={!editable} type="number" defaultValue={p.pct} onBlur={(e) => updatePayPct(idx, Number(e.target.value) || 0)} className={`${inputCls} tabular`} />
-                      </td>
-                      <td className="py-1 tabular font-bold w-28 text-left">{fmt(totals.finalTotal * (Number(p.pct) || 0) / 100)}</td>
-                      {editable && (
-                        <td className="w-8">
-                          <button onClick={() => removePayment(idx)} className="text-red-600 text-xs">✕</button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className={`text-xs font-bold ${Math.abs(payPctTotal - 100) < 0.01 ? "text-[#2f7d4f]" : "text-[#a3402f]"}`}>
-                {Math.abs(payPctTotal - 100) < 0.01 ? "✓ مجموع النسب 100%" : `مجموع النسب حالياً ${payPctTotal}% (يفترض أن يكون 100%)`}
+              <div className="flex items-center justify-between gap-3">
+                <div className="font-bold text-sm">نظام الدفعات</div>
+                <select
+                  disabled={!editable}
+                  defaultValue={meta.contract_type}
+                  onChange={(e) => persistMeta({ contract_type: e.target.value as "LUMP_SUM" | "COST_PLUS" })}
+                  className={inputCls}
+                >
+                  <option value="LUMP_SUM">عقد مبلغ مقطوع</option>
+                  <option value="COST_PLUS">عقد كوست بلص (تكلفة + نسبة)</option>
+                </select>
               </div>
-              {editable && (
-                <button onClick={addPayment} className="self-start text-xs font-bold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--surface-muted)]">＋ إضافة دفعة</button>
+
+              {meta.contract_type === "COST_PLUS" ? (
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2 text-xs font-bold">
+                    نسبة الشركة (ربح ومصاريف إدارية) %
+                    <input
+                      disabled={!editable}
+                      type="number"
+                      step="any"
+                      defaultValue={meta.cost_plus_fee_pct}
+                      onBlur={(e) => persistMeta({ cost_plus_fee_pct: Number(e.target.value) || 0 })}
+                      className={`${inputCls} tabular w-24`}
+                    />
+                  </label>
+                  <div className="text-[11px] text-[var(--foreground-muted)]">
+                    كل دفعة — ابتداءً من الدفعة الأولى دون استثناء — تتكوّن من التكلفة الفعلية لتلك المرحلة زائد هذه النسبة معزولة ضمنها، دون سقف أعلى لقيمة العقد. هذا النص هو ما سيظهر فعلياً في مستند العقد.
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {pay.map((p, idx) => (
+                        <tr key={idx}>
+                          <td className="py-1 pl-2">
+                            <input disabled={!editable} defaultValue={p.label} onChange={(e) => updatePayLabel(idx, e.target.value)} onBlur={commitPayLabels} className={inputCls} />
+                          </td>
+                          <td className="py-1 pl-2 w-24">
+                            <input disabled={!editable} type="number" defaultValue={p.pct} onBlur={(e) => updatePayPct(idx, Number(e.target.value) || 0)} className={`${inputCls} tabular`} />
+                          </td>
+                          <td className="py-1 tabular font-bold w-28 text-left">{fmt(totals.finalTotal * (Number(p.pct) || 0) / 100)}</td>
+                          {editable && (
+                            <td className="w-8">
+                              <button onClick={() => removePayment(idx)} className="text-red-600 text-xs">✕</button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className={`text-xs font-bold ${Math.abs(payPctTotal - 100) < 0.01 ? "text-[#2f7d4f]" : "text-[#a3402f]"}`}>
+                    {Math.abs(payPctTotal - 100) < 0.01 ? "✓ مجموع النسب 100%" : `مجموع النسب حالياً ${payPctTotal}% (يفترض أن يكون 100%)`}
+                  </div>
+                  {editable && (
+                    <button onClick={addPayment} className="self-start text-xs font-bold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--surface-muted)]">＋ إضافة دفعة</button>
+                  )}
+                </>
               )}
             </div>
           </div>
