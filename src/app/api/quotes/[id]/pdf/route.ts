@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, apiErrorResponse } from "@/lib/auth/guard";
-import { getQuote, getSectionsWithItems, getPayments, recordExport } from "@/lib/repo/quotes";
+import { getQuote, getSectionsWithItems, getPayments, getOverheadCosts, recordExport } from "@/lib/repo/quotes";
 import { getCompanySettings } from "@/lib/repo/settings";
 import { buildQuoteHtml } from "@/lib/pdf/buildQuoteHtml";
 
@@ -20,7 +20,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const sections = await getSectionsWithItems(id);
     const payments = await getPayments(id);
     const company = await getCompanySettings();
-    const html = buildQuoteHtml(quote, sections, payments, company);
+    // مصاريف المشروع الداخلية تُجلب وتُمرَّر فقط عند تفعيل خيار توزيعها على الكلفة، بحيث يعكس
+    // هذا الـPDF نفس السعر النهائي المرفوع الذي يراه المستخدم في واجهة المحرر.
+    const overheadCosts = quote.distribute_overhead ? await getOverheadCosts(id) : [];
+    const html = buildQuoteHtml(quote, sections, payments, company, overheadCosts);
 
     const apiKey = process.env.API2PDF_API_KEY;
     if (!apiKey) {
