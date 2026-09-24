@@ -48,6 +48,11 @@ export function buildContractHtml(
   );
 
   const currencyLabel = quote.currency === "IQD" ? "د.ع" : quote.currency;
+  // عقد الكوست بلص (تكلفة فعلية + نسبة أرباح ومصاريف إدارية معزولة) يختلف جوهرياً عن عقد المبلغ
+  // المقطوع في ثلاث مواد: قيمة العقد (تقدير أولي غير ملزم بدل رقم نهائي ثابت)، ونظام الدفعات (آلية
+  // تكلفة+نسبة مع كل دفعة بدل جدول نسب من مبلغ ثابت)، وبند التعديلات في الشروط العامة.
+  const isCostPlus = quote.contract_type === "COST_PLUS";
+  const costPlusFeePct = Number(quote.cost_plus_fee_pct) || 0;
   const contractNumber = buildContractNumber(quote.number);
   const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
 
@@ -207,7 +212,7 @@ export function buildContractHtml(
 
   <div class="article">
     <div class="article-title">المادة الأولى — موضوع العقد</div>
-    <div class="article-body">يلتزم الطرف الأول بتنفيذ الأعمال الخاصة بمشروع «${esc(quote.project_name)}» للطرف الثاني، وفق نطاق العمل والمواصفات الفنية المفصّلة في المادة الثانية من هذا العقد، وبما يطابق عرض السعر المعتمد المشار إليه أعلاه.</div>
+    <div class="article-body">يلتزم الطرف الأول بتنفيذ الأعمال الخاصة بمشروع «${esc(quote.project_name)}» للطرف الثاني، وفق نطاق العمل والمواصفات الفنية المفصّلة في المادة الثانية من هذا العقد، وبما يطابق عرض السعر المعتمد المشار إليه أعلاه${isCostPlus ? "، وذلك وفق نظام الكلفة الفعلية مضافاً إليها نسبة أرباح ومصاريف إدارية للطرف الأول (نظام كوست بلص) كما هو مفصّل في المادة الثالثة" : ""}.</div>
   </div>
 
   <div class="article">
@@ -217,6 +222,18 @@ export function buildContractHtml(
 
   <div class="article">
     <div class="article-title">المادة الثالثة — قيمة العقد</div>
+    ${isCostPlus ? `
+    <div class="article-body" style="margin-bottom:10px;">
+      تُنفَّذ أعمال هذا العقد وفق نظام الكلفة الفعلية مضافاً إليها نسبة أرباح ومصاريف إدارية للطرف الأول (كوست بلص)، ولا تمثل الأرقام أدناه سوى تقدير أولي غير نهائي وغير ملزم لأي من الطرفين. تتحدد القيمة الفعلية النهائية لهذا العقد تراكمياً بمجموع الدفعات الفعلية المستحقة طوال مدة التنفيذ وفق الآلية الموضحة في المادة الرابعة، دون سقف أعلى (حد أقصى) محدد مسبقاً لقيمة العقد. نسبة أرباح الطرف الأول ومصاريفه الإدارية المعتمدة في هذا العقد هي (${costPlusFeePct}%) من التكلفة الفعلية الموثّقة، وهي قابلة للتعديل باتفاق خطي بين الطرفين.
+    </div>
+    <div class="totals-box">
+      <div class="row"><span>التقدير الأولي قبل الخصم</span><b>${fmt(totals.sumSaleBeforeDiscount)} ${currencyLabel}</b></div>
+      ${totals.discountAmount > 0 ? `<div class="row"><span>الخصم</span><b>${fmt(totals.discountAmount)} ${currencyLabel}</b></div>` : ""}
+      ${totals.taxAmount > 0 ? `<div class="row"><span>الضريبة</span><b>${fmt(totals.taxAmount)} ${currencyLabel}</b></div>` : ""}
+      <div class="row final"><span>التقدير الأولي الإجمالي (غير نهائي)</span><span>${fmt(totals.finalTotal)} ${currencyLabel}</span></div>
+      <div class="words">${esc(amountToArabicWords(totals.finalTotal))}</div>
+    </div>
+    ` : `
     <div class="totals-box">
       <div class="row"><span>المجموع قبل الخصم</span><b>${fmt(totals.sumSaleBeforeDiscount)} ${currencyLabel}</b></div>
       ${totals.discountAmount > 0 ? `<div class="row"><span>الخصم</span><b>${fmt(totals.discountAmount)} ${currencyLabel}</b></div>` : ""}
@@ -224,15 +241,26 @@ export function buildContractHtml(
       <div class="row final"><span>القيمة الإجمالية للعقد</span><span>${fmt(totals.finalTotal)} ${currencyLabel}</span></div>
       <div class="words">${esc(amountToArabicWords(totals.finalTotal))}</div>
     </div>
+    `}
   </div>
 
   <div class="article">
     <div class="article-title">المادة الرابعة — نظام الدفعات</div>
+    ${isCostPlus ? `
+    <div class="article-body">يُطالِب الطرف الأول الطرف الثاني بدفعات دورية كلما تطلّب سير العمل تمويلاً إضافياً. تتكوّن كل دفعة — ابتداءً من الدفعة الأولى ودون استثناء — من عنصرين موضَّحين صراحة في طلب الدفعة:
+
+1) قيمة التكلفة الفعلية المطلوبة لتغطية المرحلة القادمة من التنفيذ (مواد، عمالة، مقاولون فرعيون، وما يماثلها من مصاريف مباشرة).
+2) نسبة الطرف الأول البالغة (${costPlusFeePct}%) من هذا المبلغ، معزولة كبند مستقل ومحتسبة ضمن ذات الدفعة، وتمثل أرباح الطرف الأول ومصاريفه الإدارية.
+
+تتكرر هذه الآلية مع كل دفعة لاحقة طوال مدة تنفيذ المشروع حتى إنجازه بالكامل.</div>
+    ${quote.payment_terms ? `<div class="article-body" style="margin-top:8px;">${esc(quote.payment_terms)}</div>` : ""}
+    ` : `
     <table class="pay">
       <thead><tr><th>الدفعة</th><th class="num">النسبة</th><th class="num">المبلغ</th></tr></thead>
       <tbody>${paymentsHtml}</tbody>
     </table>
     ${quote.payment_terms ? `<div class="article-body" style="margin-top:8px;">${esc(quote.payment_terms)}</div>` : ""}
+    `}
   </div>
 
   <div class="article">
@@ -242,9 +270,12 @@ export function buildContractHtml(
 
   <div class="article">
     <div class="article-title">المادة السادسة — الشروط والأحكام العامة</div>
-    <div class="article-body">${company.general_terms ? esc(company.general_terms) : "تنفَّذ الأعمال وفق الأصول الفنية المتعارف عليها والمواصفات المعتمدة من الطرف الثاني، وأي تعديل على النطاق أو المواصفات بعد توقيع هذا العقد يُسعَّر بشكل منفصل ولا يُعد جزءاً من هذا العقد إلا بموافقة خطية من الطرفين."}
+    <div class="article-body">${company.general_terms ? esc(company.general_terms) : (isCostPlus
+      ? "تنفَّذ الأعمال وفق الأصول الفنية المتعارف عليها والمواصفات المعتمدة من الطرف الثاني. وبما أن هذا العقد مبني على نظام الكلفة الفعلية، فإن أي تعديل على النطاق أو المواصفات أثناء التنفيذ يُحتسب ضمن التكلفة الفعلية للمشروع ولا يتطلب تسعيراً منفصلاً أو موافقة خطية مسبقة."
+      : "تنفَّذ الأعمال وفق الأصول الفنية المتعارف عليها والمواصفات المعتمدة من الطرف الثاني، وأي تعديل على النطاق أو المواصفات بعد توقيع هذا العقد يُسعَّر بشكل منفصل ولا يُعد جزءاً من هذا العقد إلا بموافقة خطية من الطرفين.")}
+${isCostPlus ? "\nيحق للطرف الثاني الاطلاع على مستندات التكلفة الفعلية (الفواتير والإيصالات) المرتبطة بأي دفعة عند الطلب. تُحسب نسبة الطرف الأول الموضحة في المادة الرابعة على أساس التكلفة الفعلية الموثَّقة لكل مرحلة." : ""}
 
-يلتزم الطرف الثاني بتهيئة موقع العمل وتمكين الطرف الأول من الوصول إليه، ويُحمَّل الطرف الثاني مسؤولية أي تأخير ناتج عن عدم جاهزية الموقع أو تأخر السداد وفق الجدول المتفق عليه في المادة الرابعة.
+يلتزم الطرف الثاني بتهيئة موقع العمل وتمكين الطرف الأول من الوصول إليه، ويُحمَّل الطرف الثاني مسؤولية أي تأخير ناتج عن عدم جاهزية الموقع أو تأخر السداد وفق الآلية المتفق عليها في المادة الرابعة.
 
 يُعفى الطرفان من الالتزام بالمدد الزمنية المحددة في هذا العقد في حال وقوع ظروف قاهرة خارجة عن إرادتهما.
 
