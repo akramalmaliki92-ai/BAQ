@@ -27,6 +27,8 @@ export interface QuoteRow {
   min_margin_pct: number | null;
   hide_unit_price: number;
   distribute_overhead: number;
+  contract_type: "LUMP_SUM" | "COST_PLUS";
+  cost_plus_fee_pct: number;
   approved_by: string | null;
   approved_at: string | null;
   revision_note: string | null;
@@ -253,6 +255,8 @@ export interface QuoteMetaInput {
   min_margin_pct?: number | null;
   hide_unit_price?: boolean;
   distribute_overhead?: boolean;
+  contract_type?: "LUMP_SUM" | "COST_PLUS";
+  cost_plus_fee_pct?: number;
 }
 
 const EDITABLE_STATUSES: QuoteStatus[] = ["DRAFT", "NEEDS_REVISION"];
@@ -270,6 +274,8 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
   const distributeOverhead =
     input.distribute_overhead != null ? (input.distribute_overhead ? 1 : 0) : current.distribute_overhead;
   const merged = {
+    contract_type: input.contract_type ?? current.contract_type,
+    cost_plus_fee_pct: input.cost_plus_fee_pct ?? current.cost_plus_fee_pct,
     title: input.title ?? current.title,
     intro_text: input.intro_text ?? current.intro_text,
     outro_text: input.outro_text ?? current.outro_text,
@@ -288,7 +294,8 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
   await db.prepare(
     `UPDATE quotes SET title=?, intro_text=?, outro_text=?, issue_date=?, valid_until=?, currency=?,
      execution_duration=?, payment_terms=?, internal_notes=?, discount_type=?, discount_value=?,
-     tax_enabled=?, tax_pct=?, min_margin_pct=?, hide_unit_price=?, distribute_overhead=?, updated_at=?
+     tax_enabled=?, tax_pct=?, min_margin_pct=?, hide_unit_price=?, distribute_overhead=?,
+     contract_type=?, cost_plus_fee_pct=?, updated_at=?
      WHERE id=?`
   ).run(
     merged.title,
@@ -307,6 +314,8 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
     merged.min_margin_pct,
     hideUnitPrice,
     distributeOverhead,
+    merged.contract_type,
+    Number(merged.cost_plus_fee_pct) || 0,
     nowIso(),
     id
   );
