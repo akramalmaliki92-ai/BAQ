@@ -1,9 +1,9 @@
 // توليد HTML لعقد تنفيذ الأعمال — يُستخدم فقط بعد اعتماد عرض السعر (APPROVED)، ويحوّل بيانات
 // العرض المعتمد إلى صيغة عقدية رسمية (طرفان، مواد مرقّمة، توقيعات) بدل عرض سعر عادي.
 // يعيد استخدام نفس محرك التسعير وقالب الأقسام/الجدول من buildQuoteHtml حفاظاً على الاتساق البصري.
-import { computeItem, computeQuoteTotals } from "@/lib/pricing/engine";
+import { computeItem, computeQuoteTotals, applyOverheadToItems, sumOverheadCosts, type PricingItem } from "@/lib/pricing/engine";
 import { amountToArabicWords } from "@/lib/pricing/numberToArabicWords";
-import type { QuoteRow, SectionWithItems, PaymentRow } from "@/lib/repo/quotes";
+import type { QuoteRow, SectionWithItems, PaymentRow, OverheadCostRow } from "@/lib/repo/quotes";
 import type { CompanySettings } from "@/lib/repo/settings";
 import type { ClientRow } from "@/lib/repo/clients";
 import { LOGO_DATA_URI } from "./logoBase64";
@@ -26,11 +26,19 @@ export function buildContractHtml(
   sections: SectionWithItems[],
   payments: PaymentRow[],
   company: CompanySettings,
-  client: ClientRow | undefined
+  client: ClientRow | undefined,
+  overheadCosts: OverheadCostRow[] = []
 ): string {
-  const flatItems = sections.flatMap((s) => s.items).map((it) => ({
+  const rawFlatItems = sections.flatMap((s) => s.items).map((it) => ({
     id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price,
   }));
+  // عند تفعيل خيار توزيع المصاريف تُضاف حصة كل فقرة من مصاريف المشروع إلى كلفتها فعلياً، فترتفع
+  // كلفتها وسعر بيعها — وبالتالي قيمة العقد نفسها — تماماً كما في واجهة المحرر وعرض السعر.
+  const overheadTotal = quote.distribute_overhead ? sumOverheadCosts(overheadCosts) : 0;
+  const flatItems = overheadTotal > 0 ? applyOverheadToItems(rawFlatItems, overheadTotal) : rawFlatItems;
+  const itemsById: Record<string, PricingItem> = {};
+  for (const it of flatItems) itemsById[it.id] = it;
+
   const totals = computeQuoteTotals(
     flatItems,
     { type: quote.discount_type, value: quote.discount_value },
@@ -48,12 +56,12 @@ export function buildContractHtml(
       const visible = s.items.filter((it) => !it.hidden_from_client);
       if (visible.length === 0) return "";
       const st = computeQuoteTotals(
-        visible.map((it) => ({ id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price })),
+        visible.map((it) => itemsById[it.id] ?? { id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price }),
         { type: "PERCENT", value: 0 }, false, 0, 0
       );
       const rows = visible
         .map((it, ii) => {
-          const c = computeItem({ id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price });
+          const c = computeItem(itemsById[it.id] ?? { id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price });
           return `<tr>
             <td class="num">${ii + 1}</td>
             <td class="name-cell">${esc(it.name)}</td>
