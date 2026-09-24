@@ -95,9 +95,8 @@ export function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-// يوزّع مبلغ مصاريف المشروع الداخلية (overhead) على الفقرات بالتناسب مع سعر بيع كل فقرة،
-// لأغراض العرض الداخلي فقط (الكلفة/الربح الداخلي) — لا يغيّر إطلاقاً سعر الوحدة أو
-// المجموع الذي يراه العميل. يرجع خريطة: معرف الفقرة → حصتها من المصاريف.
+// يوزّع مبلغ مصاريف المشروع الداخلية (overhead) على الفقرات بالتناسب مع سعر بيع كل فقرة.
+// يرجع خريطة: معرف الفقرة → حصتها (بالمبلغ الإجمالي) من المصاريف.
 export function distributeOverheadByItem(
   items: { id: string; saleTotal: number }[],
   overheadTotal: number
@@ -112,4 +111,32 @@ export function distributeOverheadByItem(
     shares[it.id] = round2((overheadTotal * it.saleTotal) / sumSale);
   }
   return shares;
+}
+
+// يطبّق توزيع مصاريف المشروع الداخلية فعلياً على كلفة كل فقرة (كلفة الوحدة، وسعر الوحدة اليدوي
+// إن وُجد)، بالتناسب مع سعر بيعها. هذا يرفع سعر الوحدة والمجموع الذي يراه العميل فعلياً — وبالتالي
+// قيمة العقد وكل التفاصيل المرتبطة به — وليس عرضاً داخلياً فقط. يُستخدم فقط عند تفعيل خيار
+// "توزيع المصاريف على الفقرات"، ولا يُعدّل أي بيانات مخزّنة (يُبنى مصفوفة فقرات جديدة في الذاكرة).
+export function applyOverheadToItems(items: PricingItem[], overheadTotal: number): PricingItem[] {
+  if (overheadTotal <= 0) return items;
+  const shares = distributeOverheadByItem(
+    items.map((it) => ({ id: it.id, saleTotal: computeItem(it).saleTotal })),
+    overheadTotal
+  );
+  return items.map((it) => {
+    const share = shares[it.id] || 0;
+    if (share <= 0 || it.qty <= 0) return it;
+    const extraPerUnit = round2(share / it.qty);
+    const adjusted: PricingItem = { ...it, unitCost: round2(it.unitCost + extraPerUnit) };
+    if (it.manualUnitPrice != null && !Number.isNaN(it.manualUnitPrice)) {
+      adjusted.manualUnitPrice = round2(it.manualUnitPrice + extraPerUnit);
+    }
+    return adjusted;
+  });
+}
+
+// مجموع مصاريف ونفقات المشروع الداخلية (أيام × سعر اليوم) لكل بنودها — دالة نقية واحدة
+// يشترك باستخدامها كل من واجهة المحرر وتوليد PDF/العقد على الخادم لضمان اتساق الحساب.
+export function sumOverheadCosts(items: { days: number; daily_rate: number }[]): number {
+  return round2(items.reduce((s, o) => s + (Number(o.days) || 0) * (Number(o.daily_rate) || 0), 0));
 }
