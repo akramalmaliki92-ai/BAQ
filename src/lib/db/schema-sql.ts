@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS quotes (
   contract_type TEXT NOT NULL DEFAULT 'LUMP_SUM' CHECK (contract_type IN ('LUMP_SUM','COST_PLUS')),
   cost_plus_fee_pct REAL NOT NULL DEFAULT 35,
   total_area_sqm REAL NOT NULL DEFAULT 0,
+  execution_duration_days INTEGER NOT NULL DEFAULT 0,
   approved_by TEXT REFERENCES users(id),
   approved_at TEXT,
   revision_note TEXT,
