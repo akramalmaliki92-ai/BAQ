@@ -151,6 +151,17 @@ export default function NewQuoteForm({
         )}
       </div>
 
+      <div className="border-t border-[var(--border)] pt-4">
+        <label className="block text-xs font-bold mb-1.5 text-[var(--foreground-muted)]">مدة التنفيذ المتوقعة *</label>
+        <input
+          name="execution_duration"
+          required
+          defaultValue={v.execution_duration}
+          placeholder="مثال: 45 يوم عمل"
+          className={FIELD_CLS}
+        />
+      </div>
+
       {state.error && (
         <div className="text-sm rounded-lg px-3 py-2 bg-red-50 text-red-700 border border-red-200">{state.error}</div>
       )}
