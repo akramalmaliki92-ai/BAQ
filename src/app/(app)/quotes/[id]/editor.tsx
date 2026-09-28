@@ -60,6 +60,7 @@ export default function QuoteEditor(props: EditorProps) {
     distribute_overhead: !!quote.distribute_overhead,
     contract_type: quote.contract_type,
     cost_plus_fee_pct: quote.cost_plus_fee_pct,
+    total_area_sqm: quote.total_area_sqm,
   });
   const [pay, setPay] = useState(payments.map((p) => ({ label: p.label, pct: p.pct })));
   const [overhead, setOverhead] = useState(
@@ -456,6 +457,17 @@ export default function QuoteEditor(props: EditorProps) {
             <Field label="مدة التنفيذ">
               <input disabled={!editable} defaultValue={meta.execution_duration} onBlur={(e) => persistMeta({ execution_duration: e.target.value })} className={inputCls} placeholder="مثال: 45 يوم عمل" />
             </Field>
+            <Field label="المساحة الكلية للمشروع (م²)">
+              <input
+                disabled={!editable}
+                type="number"
+                step="any"
+                defaultValue={meta.total_area_sqm || ""}
+                onBlur={(e) => persistMeta({ total_area_sqm: Number(e.target.value) || 0 })}
+                className={`${inputCls} tabular`}
+                placeholder="اختياري — لعرض سعر المتر المربع داخلياً"
+              />
+            </Field>
             <Field label="طريقة الدفع (نص وصفي)">
               <input disabled={!editable} defaultValue={meta.payment_terms} onBlur={(e) => persistMeta({ payment_terms: e.target.value })} className={inputCls} />
             </Field>
@@ -846,7 +858,7 @@ export default function QuoteEditor(props: EditorProps) {
             </div>
           </div>
 
-          <TotalsSummary totals={totals} currency={quote.currency} overheadTotal={overheadTotal} distributeOverhead={meta.distribute_overhead} />
+          <TotalsSummary totals={totals} currency={quote.currency} overheadTotal={overheadTotal} distributeOverhead={meta.distribute_overhead} areaSqm={Number(meta.total_area_sqm) || 0} />
 
           {/* إجراءات دورة المراجعة */}
           <ReviewActions
@@ -937,9 +949,12 @@ function LibraryPicker({
 }
 
 function TotalsSummary({
-  totals, currency, overheadTotal, distributeOverhead,
-}: { totals: ReturnType<typeof computeQuoteTotals>; currency: string; overheadTotal?: number; distributeOverhead?: boolean }) {
+  totals, currency, overheadTotal, distributeOverhead, areaSqm,
+}: { totals: ReturnType<typeof computeQuoteTotals>; currency: string; overheadTotal?: number; distributeOverhead?: boolean; areaSqm?: number }) {
   const ovh = overheadTotal || 0;
+  // سعر المتر المربع عرض داخلي فقط لتقدير الكلفة/السعر التقريبي للمتر — لا يظهر في عرض السعر
+  // المُصدَّر للعميل، ويُحتسَب كسطر إجمالي واحد فقط (المبلغ النهائي ÷ المساحة الكلية) لا لكل قسم.
+  const pricePerSqm = areaSqm && areaSqm > 0 ? totals.finalTotal / areaSqm : 0;
   // عند تفعيل التوزيع تكون المصاريف مُضافة فعلياً إلى الكلفة ضمن totals، فـ"الربح المتوقع" أعلاه صافٍ
   // منها فعلاً — لا داعي لخصمها مرة ثانية. عند إيقاف التوزيع لا تزال ضمن الكلفة، فنعرضها كـ"ماذا لو" فقط.
   const netProfitIfDistributed = totals.profitAfterDiscount - ovh;
@@ -968,6 +983,9 @@ function TotalsSummary({
       <div className="h-px bg-[var(--border)] my-1" />
       <Row l="المبلغ النهائي" v={`${fmt(totals.finalTotal)} ${currency === "IQD" ? "د.ع" : currency}`} big />
       <div className="text-xs text-[var(--foreground-muted)] mt-1">{amountToArabicWords(totals.finalTotal)}</div>
+      {pricePerSqm > 0 && (
+        <Row l="سعر المتر المربع (تقديري، داخلي)" v={`${fmt(pricePerSqm)} ${currency === "IQD" ? "د.ع" : currency}`} good />
+      )}
     </div>
   );
 }
