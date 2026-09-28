@@ -24,6 +24,7 @@ import {
   approveQuoteAction,
   cancelApprovalAction,
   cancelQuoteAction,
+  reopenQuoteAction,
 } from "../actions";
 
 const EDITABLE_STATUSES = ["DRAFT", "NEEDS_REVISION"];
@@ -369,6 +370,15 @@ export default function QuoteEditor(props: EditorProps) {
     if (!confirm("إلغاء عرض السعر نهائياً؟")) return;
     startTransition(async () => {
       await cancelQuoteAction(quote.id, cancelReason || "إلغاء بواسطة الإدارة").catch((e) => alert(e.message));
+      window.location.reload();
+    });
+  }
+  // استعادة عرض سعر أُلغي بالخطأ إلى حالة مسودة قابلة للتعديل والتكملة عليها، بدل الاضطرار لإنشاء
+  // تسعيرة جديدة من الصفر ونقل بياناتها يدوياً من العرض الملغى.
+  function doReopenQuote() {
+    if (!confirm("استعادة عرض السعر الملغى وإعادته إلى مسودة قابلة للتعديل؟")) return;
+    startTransition(async () => {
+      await reopenQuoteAction(quote.id, cancelReason || "استعادة عرض سعر ملغى للتعديل").catch((e) => alert(e.message));
       window.location.reload();
     });
   }
@@ -873,6 +883,7 @@ export default function QuoteEditor(props: EditorProps) {
             onReturn={doReturn}
             onCancelApproval={doCancelApproval}
             onCancelQuote={doCancelQuote}
+            onReopenQuote={doReopenQuote}
           />
         </>
       )}
@@ -1000,12 +1011,12 @@ function Row({ l, v, good, bad, big }: { l: string; v: string; good?: boolean; b
 
 function ReviewActions({
   role, status, canApproveRole, revisionNote, setRevisionNote, cancelReason, setCancelReason,
-  onApprove, onReturn, onCancelApproval, onCancelQuote,
+  onApprove, onReturn, onCancelApproval, onCancelQuote, onReopenQuote,
 }: {
   role: string; status: string; canApproveRole: boolean;
   revisionNote: string; setRevisionNote: (s: string) => void;
   cancelReason: string; setCancelReason: (s: string) => void;
-  onApprove: () => void; onReturn: () => void; onCancelApproval: () => void; onCancelQuote: () => void;
+  onApprove: () => void; onReturn: () => void; onCancelApproval: () => void; onCancelQuote: () => void; onReopenQuote: () => void;
 }) {
   if (!canApproveRole) return null;
   return (
@@ -1030,6 +1041,17 @@ function ReviewActions({
       )}
       {(status === "DRAFT" || status === "IN_REVIEW" || status === "NEEDS_REVISION") && (
         <button onClick={onCancelQuote} className="self-start text-xs text-red-600 font-bold">إلغاء عرض السعر نهائياً</button>
+      )}
+      {status === "CANCELLED" && (
+        <div className="flex flex-col gap-2">
+          <div className="text-xs text-[var(--foreground-muted)]">
+            هذا العرض ملغى ومقفل ضد التعديل. يمكنك استعادته إلى مسودة قابلة للتعديل والتكملة عليها بنفس رقمه وبياناته، بدل إنشاء تسعيرة جديدة من الصفر.
+          </div>
+          <div className="flex gap-2 items-center flex-wrap">
+            <input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="سبب الاستعادة (اختياري)..." className={`${inputCls} max-w-sm`} />
+            <button onClick={onReopenQuote} className="rounded-xl border border-green-300 text-green-700 font-bold text-sm px-4 py-2.5 hover:bg-green-50">↺ استعادة العرض الملغى للتعديل</button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1186,7 +1208,7 @@ function AuditTab({ auditLog }: { auditLog: EditorProps["auditLog"] }) {
   const ACTION_LABEL: Record<string, string> = {
     CREATED: "إنشاء عرض السعر", PRICE_EDITED: "تعديل تسعير", SENT_FOR_REVIEW: "إرسال للمراجعة",
     RETURNED_FOR_REVISION: "إعادة للتعديل", APPROVED: "اعتماد", APPROVAL_CANCELLED: "إلغاء اعتماد",
-    CANCELLED: "إلغاء عرض السعر", EXPORTED: "تصدير نسخة نهائية",
+    CANCELLED: "إلغاء عرض السعر", REOPENED: "استعادة عرض سعر ملغى", EXPORTED: "تصدير نسخة نهائية",
   };
   return (
     <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
