@@ -27,9 +27,10 @@ export interface QuoteRow {
   min_margin_pct: number | null;
   hide_unit_price: number;
   distribute_overhead: number;
-  contract_type: "LUMP_SUM" | "COST_PLUS";
+  contract_type: "LUMP_SUM" | "COST_PLUS" | "AREA_BASED";
   cost_plus_fee_pct: number;
   total_area_sqm: number;
+  price_per_sqm: number;
   execution_duration_days: number;
   approved_by: string | null;
   approved_at: string | null;
@@ -265,9 +266,10 @@ export interface QuoteMetaInput {
   min_margin_pct?: number | null;
   hide_unit_price?: boolean;
   distribute_overhead?: boolean;
-  contract_type?: "LUMP_SUM" | "COST_PLUS";
+  contract_type?: "LUMP_SUM" | "COST_PLUS" | "AREA_BASED";
   cost_plus_fee_pct?: number;
   total_area_sqm?: number;
+  price_per_sqm?: number;
   execution_duration_days?: number;
 }
 
@@ -289,6 +291,7 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
     contract_type: input.contract_type ?? current.contract_type,
     cost_plus_fee_pct: input.cost_plus_fee_pct ?? current.cost_plus_fee_pct,
     total_area_sqm: input.total_area_sqm ?? current.total_area_sqm,
+    price_per_sqm: input.price_per_sqm ?? current.price_per_sqm,
     execution_duration_days: input.execution_duration_days ?? current.execution_duration_days,
     title: input.title ?? current.title,
     intro_text: input.intro_text ?? current.intro_text,
@@ -309,7 +312,7 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
     `UPDATE quotes SET title=?, intro_text=?, outro_text=?, issue_date=?, valid_until=?, currency=?,
      execution_duration=?, payment_terms=?, internal_notes=?, discount_type=?, discount_value=?,
      tax_enabled=?, tax_pct=?, min_margin_pct=?, hide_unit_price=?, distribute_overhead=?,
-     contract_type=?, cost_plus_fee_pct=?, total_area_sqm=?, execution_duration_days=?, updated_at=?
+     contract_type=?, cost_plus_fee_pct=?, total_area_sqm=?, price_per_sqm=?, execution_duration_days=?, updated_at=?
      WHERE id=?`
   ).run(
     merged.title,
@@ -331,6 +334,7 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
     merged.contract_type,
     Number(merged.cost_plus_fee_pct) || 0,
     Number(merged.total_area_sqm) || 0,
+    Number(merged.price_per_sqm) || 0,
     Number(merged.execution_duration_days) || 0,
     nowIso(),
     id
