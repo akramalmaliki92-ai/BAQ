@@ -14,6 +14,9 @@ function esc(s: string | null | undefined): string {
 function fmt(n: number) {
   return Math.round(n || 0).toLocaleString("en-US");
 }
+function round2(n: number) {
+  return Math.round((n || 0) * 100) / 100;
+}
 
 // رقم العقد مشتق من رقم عرض السعر نفسه (نفس الرقم المرجعي)، مع استبدال بادئة "QTN" الخاصة
 // بعروض الأسعار بـ"CTR" الخاصة بالعقود إن وُجدت، لتبقى قابلة للتتبع دون ترقيم منفصل مستقل.
@@ -53,6 +56,21 @@ export function buildContractHtml(
   // تكلفة+نسبة مع كل دفعة بدل جدول نسب من مبلغ ثابت)، وبند التعديلات في الشروط العامة.
   const isCostPlus = quote.contract_type === "COST_PLUS";
   const costPlusFeePct = Number(quote.cost_plus_fee_pct) || 0;
+  // عقد "بسعر المتر المربع": تُذكر الفقرات والكميات في نطاق الأعمال دون أي كلف أو أسعار على الإطلاق
+  // (لا سعر وحدة ولا مبلغ إجمالي لكل فقرة)، وتُحتسب قيمة العقد فقط من المساحة الكلية × سعر المتر
+  // الواحد المتفق عليه، بمعزل تام عن تسعير الفقرات الداخلي (الذي يبقى للتتبع الداخلي فقط).
+  const isAreaBased = quote.contract_type === "AREA_BASED";
+  const pricePerSqm = Number(quote.price_per_sqm) || 0;
+  const areaBaseValue = round2((Number(quote.total_area_sqm) || 0) * pricePerSqm);
+  const areaTotals = isAreaBased
+    ? computeQuoteTotals(
+        [{ id: "area", qty: 1, unitCost: 0, marginPct: 0, manualUnitPrice: areaBaseValue }],
+        { type: quote.discount_type, value: quote.discount_value },
+        !!quote.tax_enabled,
+        quote.tax_pct,
+        0
+      )
+    : null;
   const contractNumber = buildContractNumber(quote.number);
   const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
 
@@ -73,8 +91,8 @@ export function buildContractHtml(
             <td class="detail-cell">${esc(it.description)}</td>
             <td class="num">${esc(it.unit)}</td>
             <td class="num">${fmt(it.qty)}</td>
-            ${quote.hide_unit_price ? "" : `<td class="num">${fmt(c.unitPrice)}</td>`}
-            <td class="num total">${fmt(c.saleTotal)}</td>
+            ${isAreaBased ? "" : (quote.hide_unit_price ? "" : `<td class="num">${fmt(c.unitPrice)}</td>`)}
+            ${isAreaBased ? "" : `<td class="num total">${fmt(c.saleTotal)}</td>`}
           </tr>`;
         })
         .join("");
@@ -89,20 +107,21 @@ export function buildContractHtml(
                 <th>التفاصيل</th>
                 <th class="num">الوحدة</th>
                 <th class="num">الكمية</th>
-                ${quote.hide_unit_price ? "" : `<th class="num">سعر الوحدة</th>`}
-                <th class="num">المبلغ الإجمالي</th>
+                ${isAreaBased ? "" : (quote.hide_unit_price ? "" : `<th class="num">سعر الوحدة</th>`)}
+                ${isAreaBased ? "" : `<th class="num">المبلغ الإجمالي</th>`}
               </tr>
             </thead>
             <tbody>${rows}</tbody>
           </table>
-          <div class="section-sub">مجموع البند: <b>${fmt(st.sumSaleBeforeDiscount)} ${currencyLabel}</b></div>
+          ${isAreaBased ? "" : `<div class="section-sub">مجموع البند: <b>${fmt(st.sumSaleBeforeDiscount)} ${currencyLabel}</b></div>`}
         </div>`;
     })
     .join("");
 
+  const contractValue = isAreaBased && areaTotals ? areaTotals.finalTotal : totals.finalTotal;
   const paymentsHtml = payments
     .map(
-      (p) => `<tr><td>${esc(p.label)}</td><td class="num">${p.pct}%</td><td class="num total">${fmt((totals.finalTotal * p.pct) / 100)} ${currencyLabel}</td></tr>`
+      (p) => `<tr><td>${esc(p.label)}</td><td class="num">${p.pct}%</td><td class="num total">${fmt((contractValue * p.pct) / 100)} ${currencyLabel}</td></tr>`
     )
     .join("");
 
@@ -253,7 +272,7 @@ export function buildContractHtml(
 
   <div class="article">
     <div class="article-title">المادة الأولى — موضوع العقد</div>
-    <div class="article-body">يلتزم الطرف الأول بتنفيذ الأعمال الخاصة بمشروع «${esc(quote.project_name)}» للطرف الثاني، وفق نطاق العمل والمواصفات الفنية المفصّلة في المادة الثانية من هذا العقد، وبما يطابق عرض السعر المعتمد المشار إليه أعلاه${isCostPlus ? "، وذلك وفق نظام الكلفة الفعلية مضافاً إليها نسبة أرباح ومصاريف إدارية للطرف الأول (نظام كوست بلص) كما هو مفصّل في المادة الثالثة" : ""}.</div>
+    <div class="article-body">يلتزم الطرف الأول بتنفيذ الأعمال الخاصة بمشروع «${esc(quote.project_name)}» للطرف الثاني، وفق نطاق العمل والمواصفات الفنية المفصّلة في المادة الثانية من هذا العقد، وبما يطابق عرض السعر المعتمد المشار إليه أعلاه${isCostPlus ? "، وذلك وفق نظام الكلفة الفعلية مضافاً إليها نسبة أرباح ومصاريف إدارية للطرف الأول (نظام كوست بلص) كما هو مفصّل في المادة الثالثة" : isAreaBased ? "، وذلك وفق نظام التسعير بسعر المتر المربع الواحد كما هو مفصّل في المادة الثالثة" : ""}.</div>
   </div>
 
   <div class="article">
@@ -263,7 +282,20 @@ export function buildContractHtml(
 
   <div class="article">
     <div class="article-title">المادة الثالثة — قيمة العقد</div>
-    ${isCostPlus ? `
+    ${isAreaBased && areaTotals ? `
+    <div class="article-body" style="margin-bottom:10px;">
+      تُحتسب قيمة هذا العقد على أساس سعر المتر المربع الواحد المتفق عليه بين الطرفين، مضروباً بالمساحة الكلية الفعلية لمشروع «${esc(quote.project_name)}»، وفق نطاق الأعمال والمواصفات الفنية المبيّنة في المادة الثانية أعلاه.
+    </div>
+    <div class="totals-box">
+      <div class="row"><span>المساحة الكلية للمشروع</span><b>${fmt(quote.total_area_sqm)} م²</b></div>
+      <div class="row"><span>سعر المتر المربع الواحد</span><b>${fmt(pricePerSqm)} ${currencyLabel}</b></div>
+      <div class="row"><span>المجموع قبل الخصم</span><b>${fmt(areaTotals.sumSaleBeforeDiscount)} ${currencyLabel}</b></div>
+      ${areaTotals.discountAmount > 0 ? `<div class="row"><span>الخصم</span><b>${fmt(areaTotals.discountAmount)} ${currencyLabel}</b></div>` : ""}
+      ${areaTotals.taxAmount > 0 ? `<div class="row"><span>الضريبة</span><b>${fmt(areaTotals.taxAmount)} ${currencyLabel}</b></div>` : ""}
+      <div class="row final"><span>القيمة الإجمالية للعقد</span><span>${fmt(areaTotals.finalTotal)} ${currencyLabel}</span></div>
+      <div class="words">${esc(amountToArabicWords(areaTotals.finalTotal))}</div>
+    </div>
+    ` : isCostPlus ? `
     <div class="article-body" style="margin-bottom:10px;">
       تُنفَّذ أعمال هذا العقد وفق نظام الكلفة الفعلية مضافاً إليها نسبة أرباح ومصاريف إدارية للطرف الأول (كوست بلص)، ولا تمثل الأرقام أدناه سوى تقدير أولي غير نهائي وغير ملزم لأي من الطرفين. تتحدد القيمة الفعلية النهائية لهذا العقد تراكمياً بمجموع الدفعات الفعلية المستحقة طوال مدة التنفيذ وفق الآلية الموضحة في المادة الرابعة، دون سقف أعلى (حد أقصى) محدد مسبقاً لقيمة العقد. نسبة أرباح الطرف الأول ومصاريفه الإدارية المعتمدة في هذا العقد هي (${costPlusFeePct}%) من التكلفة الفعلية الموثّقة، وهي قابلة للتعديل باتفاق خطي بين الطرفين.
     </div>
