@@ -3,6 +3,7 @@ import { requireUser, apiErrorResponse } from "@/lib/auth/guard";
 import { getQuote, getSectionsWithItems, getPayments, getOverheadCosts, recordExport } from "@/lib/repo/quotes";
 import { getCompanySettings } from "@/lib/repo/settings";
 import { buildQuoteHtml } from "@/lib/pdf/buildQuoteHtml";
+import { buildExportFileName, contentDispositionHeader } from "@/lib/pdf/fileName";
 
 // تصدير PDF عبر خدمة سحابية جاهزة (api2pdf.com) بدل تشغيل متصفح Chromium محلياً — هذا يزيل
 // الاعتماد الكامل على تثبيت متصفح على الخادم (وهو ما سبّب كل مشاكل التصدير على الأجهزة المحلية)،
@@ -24,6 +25,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // هذا الـPDF نفس السعر النهائي المرفوع الذي يراه المستخدم في واجهة المحرر.
     const overheadCosts = quote.distribute_overhead ? await getOverheadCosts(id) : [];
     const html = buildQuoteHtml(quote, sections, payments, company, overheadCosts);
+    const fileName = buildExportFileName(quote.number, quote.project_name);
 
     const apiKey = process.env.API2PDF_API_KEY;
     if (!apiKey) {
@@ -36,7 +38,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       body: JSON.stringify({
         html,
         inlinePdf: false,
-        fileName: `${quote.number}.pdf`,
+        fileName,
         options: {
           printBackground: true,
           // api2pdf (وPuppeteer تحتها) تتوقع قيم الهوامش كنصوص تحمل وحدة قياس (px/in/mm)، وليس أرقاماً
@@ -69,7 +71,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${quote.number}.pdf"`,
+        "Content-Disposition": contentDispositionHeader(fileName),
       },
     });
   } catch (e) {
