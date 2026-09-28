@@ -591,6 +591,13 @@ export async function cancelQuote(quoteId: string, userId: string, reason: strin
   await logAudit(quoteId, userId, "CANCELLED", reason);
 }
 
+// استعادة عرض سعر أُلغي (بالخطأ أو غير ذلك) إلى حالة "مسودة" قابلة للتعديل من جديد، بدل بقائه مقفلاً
+// نهائياً وإجبار المستخدم على إنشاء رقم وتسعيرة جديدة من الصفر ونقل كل البيانات يدوياً.
+export async function reopenQuote(quoteId: string, userId: string, reason: string): Promise<void> {
+  await db.prepare("UPDATE quotes SET status='DRAFT', updated_at=? WHERE id=?").run(nowIso(), quoteId);
+  await logAudit(quoteId, userId, "REOPENED", reason);
+}
+
 export async function recordPriceEdit(quoteId: string, userId: string, note: string): Promise<void> {
   await logAudit(quoteId, userId, "PRICE_EDITED", note);
 }
