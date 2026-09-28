@@ -4,6 +4,7 @@ import { getQuote, getSectionsWithItems, getPayments, getOverheadCosts, recordEx
 import { getCompanySettings } from "@/lib/repo/settings";
 import { getClient } from "@/lib/repo/clients";
 import { buildContractHtml, buildContractNumber } from "@/lib/pdf/buildContractHtml";
+import { buildExportFileName, contentDispositionHeader } from "@/lib/pdf/fileName";
 
 // تحويل عرض سعر مُعتمد إلى عقد عمل جاهز للتقديم — يعتمد نفس آلية تصدير الـPDF عبر api2pdf.com
 // المستخدمة في مسار /api/quotes/[id]/pdf، لكنه يرفض أي عرض سعر لم يُعتمد بعد (status !== APPROVED)
@@ -35,6 +36,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const contractNumber = buildContractNumber(quote.number);
+    const fileName = buildExportFileName(contractNumber, quote.project_name);
 
     const genRes = await fetch(API2PDF_URL, {
       method: "POST",
@@ -42,7 +44,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       body: JSON.stringify({
         html,
         inlinePdf: false,
-        fileName: `${contractNumber}.pdf`,
+        fileName,
         options: {
           printBackground: true,
           marginTop: "16px",
@@ -72,7 +74,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${contractNumber}.pdf"`,
+        "Content-Disposition": contentDispositionHeader(fileName),
       },
     });
   } catch (e) {
