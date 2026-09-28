@@ -41,6 +41,110 @@ function fmt(n: number) {
   return Math.round(n || 0).toLocaleString("en-US");
 }
 
+/* ---------------- جدول التنفيذ الزمني ----------------
+ * حساب مشتق بالكامل من بيانات العرض الحالية (الأقسام + قيمها + مدة التنفيذ بالأيام + نسب الدفعات)،
+ * لا يُخزَّن في قاعدة البيانات. الافتراضات المعتمدة (بالاتفاق مع صاحب العمل):
+ *  - مدة كل قسم تُحسب تلقائياً بالتناسب مع قيمته المالية (البيع) من إجمالي قيمة العرض.
+ *  - الأقسام تُنفَّذ بالتسلسل الكامل، قسماً بعد قسم، دون تداخل.
+ *  - كل دفعة مالية تُربط بنسبة إنجاز عامة تراكمية من كامل المشروع (تساوي مجموع نسب الدفعات حتى تلك الدفعة).
+ */
+export interface ScheduleSection {
+  id: string;
+  name: string;
+  saleTotal: number;
+  weightPct: number;
+  days: number;
+  startDay: number;
+  endDay: number;
+  cumulativePct: number;
+}
+
+export interface SchedulePayment {
+  label: string;
+  pct: number;
+  cumulativePct: number;
+  targetDay: number;
+  milestoneSectionName: string;
+}
+
+export interface ExecutionSchedule {
+  totalDays: number;
+  totalValue: number;
+  sections: ScheduleSection[];
+  payments: SchedulePayment[];
+}
+
+function buildExecutionSchedule(
+  sections: { id: string; name: string; items: { id: string }[] }[],
+  itemsById: Record<string, PricingItem>,
+  executionDurationDays: number,
+  payments: { label: string; pct: number }[]
+): ExecutionSchedule | null {
+  const totalDays = Math.max(0, Math.round(executionDurationDays || 0));
+  if (totalDays <= 0) return null;
+
+  const rawSections = sections.map((s) => {
+    const saleTotal = s.items.reduce((sum, it) => {
+      const pricing = itemsById[it.id];
+      return sum + (pricing ? computeItem(pricing).saleTotal : 0);
+    }, 0);
+    return { id: s.id, name: s.name, saleTotal };
+  });
+  const totalValue = rawSections.reduce((s, r) => s + r.saleTotal, 0);
+  if (totalValue <= 0) return null;
+
+  // توزيع الأيام بالتناسب مع القيمة، بطريقة "أكبر باقٍ" (Largest Remainder) لضمان أن مجموع الأيام
+  // المخصَّصة للأقسام يساوي بالضبط إجمالي مدة التنفيذ.
+  const rawDays = rawSections.map((r) => (r.saleTotal / totalValue) * totalDays);
+  const floorDays = rawDays.map((d) => Math.floor(d));
+  let remaining = totalDays - floorDays.reduce((s, d) => s + d, 0);
+  const remainders = rawDays.map((d, i) => ({ i, frac: d - floorDays[i] }));
+  remainders.sort((a, b) => b.frac - a.frac);
+  const finalDays = [...floorDays];
+  for (let k = 0; k < remainders.length && remaining > 0; k++) {
+    finalDays[remainders[k].i] += 1;
+    remaining--;
+  }
+
+  let cumulativeDays = 0;
+  let cumulativeValue = 0;
+  const scheduleSections: ScheduleSection[] = rawSections.map((r, i) => {
+    const days = finalDays[i];
+    const startDay = days > 0 ? cumulativeDays + 1 : cumulativeDays;
+    cumulativeDays += days;
+    cumulativeValue += r.saleTotal;
+    return {
+      id: r.id,
+      name: r.name,
+      saleTotal: r.saleTotal,
+      weightPct: (r.saleTotal / totalValue) * 100,
+      days,
+      startDay,
+      endDay: cumulativeDays,
+      cumulativePct: (cumulativeValue / totalValue) * 100,
+    };
+  });
+
+  let cumulativePayPct = 0;
+  const schedulePayments: SchedulePayment[] = payments.map((p) => {
+    cumulativePayPct += Number(p.pct) || 0;
+    const clampedPct = Math.min(100, Math.max(0, cumulativePayPct));
+    const targetDay = Math.min(totalDays, Math.max(1, Math.round((clampedPct / 100) * totalDays)));
+    const milestone =
+      scheduleSections.find((s) => s.cumulativePct >= clampedPct - 0.001) ||
+      scheduleSections[scheduleSections.length - 1];
+    return {
+      label: p.label,
+      pct: Number(p.pct) || 0,
+      cumulativePct: clampedPct,
+      targetDay,
+      milestoneSectionName: milestone ? milestone.name : "—",
+    };
+  });
+
+  return { totalDays, totalValue, sections: scheduleSections, payments: schedulePayments };
+}
+
 export default function QuoteEditor(props: EditorProps) {
   const { quote, payments, libraryItems, company, currentUser } = props;
   const [sections, setSections] = useState(props.sections);
@@ -62,12 +166,13 @@ export default function QuoteEditor(props: EditorProps) {
     contract_type: quote.contract_type,
     cost_plus_fee_pct: quote.cost_plus_fee_pct,
     total_area_sqm: quote.total_area_sqm,
+    execution_duration_days: quote.execution_duration_days,
   });
   const [pay, setPay] = useState(payments.map((p) => ({ label: p.label, pct: p.pct })));
   const [overhead, setOverhead] = useState(
     props.overheadCosts.map((o) => ({ label: o.label, days: o.days, daily_rate: o.daily_rate }))
   );
-  const [tab, setTab] = useState<"edit" | "internal" | "client" | "log">("edit");
+  const [tab, setTab] = useState<"edit" | "internal" | "client" | "schedule" | "log">("edit");
   const [pending, startTransition] = useTransition();
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [revisionNote, setRevisionNote] = useState("");
@@ -118,6 +223,11 @@ export default function QuoteEditor(props: EditorProps) {
         quote.min_margin_pct ?? company.min_margin_pct
       ),
     [effectiveFlatItems, meta, quote.min_margin_pct, company.min_margin_pct]
+  );
+
+  const schedule = useMemo(
+    () => buildExecutionSchedule(sections, effectiveItemsById, Number(meta.execution_duration_days) || 0, pay),
+    [sections, effectiveItemsById, meta.execution_duration_days, pay]
   );
 
   function persistMeta(patch: Partial<typeof meta>) {
@@ -438,6 +548,7 @@ export default function QuoteEditor(props: EditorProps) {
           { k: "edit", l: "تحرير" },
           { k: "internal", l: "معاينة داخلية (سرّي)" },
           { k: "client", l: "معاينة العميل" },
+          { k: "schedule", l: "جدول التنفيذ الزمني (داخلي)" },
           { k: "log", l: "السجل الزمني" },
         ].map((t) => (
           <button
@@ -466,6 +577,18 @@ export default function QuoteEditor(props: EditorProps) {
             </Field>
             <Field label="مدة التنفيذ">
               <input disabled={!editable} defaultValue={meta.execution_duration} onBlur={(e) => persistMeta({ execution_duration: e.target.value })} className={inputCls} placeholder="مثال: 45 يوم عمل" />
+            </Field>
+            <Field label="مدة التنفيذ (بالأيام)">
+              <input
+                disabled={!editable}
+                type="number"
+                step="1"
+                min="0"
+                defaultValue={meta.execution_duration_days || ""}
+                onBlur={(e) => persistMeta({ execution_duration_days: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
+                className={`${inputCls} tabular`}
+                placeholder="مثال: 45 — لحساب جدول التنفيذ الزمني"
+              />
             </Field>
             <Field label="المساحة الكلية للمشروع (م²)">
               <input
@@ -901,6 +1024,8 @@ export default function QuoteEditor(props: EditorProps) {
         />
       )}
 
+      {tab === "schedule" && <ScheduleTab schedule={schedule} currency={quote.currency} />}
+
       {tab === "log" && <AuditTab auditLog={props.auditLog} />}
     </div>
   );
@@ -1199,6 +1324,85 @@ function DocumentPreview({
           <div className="border-t border-[var(--foreground-muted)] pt-2 mx-6">توقيع وختم الطرف الأول (بيت القصيد)</div>
           <div className="border-t border-[var(--foreground-muted)] pt-2 mx-6">توقيع الطرف الثاني (العميل)</div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ScheduleTab({ schedule, currency }: { schedule: ExecutionSchedule | null; currency: string }) {
+  if (!schedule) {
+    return (
+      <div className="bg-white rounded-2xl border border-[var(--border)] p-6 text-sm text-[var(--foreground-muted)]">
+        لبناء جدول التنفيذ الزمني، يجب إدخال “مدة التنفيذ (بالأيام)” في تبويب “تحرير” أعلاه، مع وجود فقرات
+        بقيمة مالية في العرض. هذا الجدول داخلي فقط ولا يظهر للعميل حالياً.
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="rounded-lg px-3.5 py-2.5 bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold">
+        هذا الجدول داخلي فقط (لا يظهر للعميل) — حساب تقديري تلقائي: مدة كل قسم بالتناسب مع قيمته المالية من
+        إجمالي العرض، بتنفيذ متسلسل (قسم بعد قسم) على مدى {schedule.totalDays} يوماً إجمالاً.
+      </div>
+
+      <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="px-5 py-3 font-bold text-sm border-b border-[var(--border)]">جدول تنفيذ الأقسام</div>
+        <table className="w-full text-sm">
+          <thead className="bg-[var(--surface-muted)] text-[var(--foreground-muted)]">
+            <tr>
+              <th className="text-start px-4 py-2 font-bold">القسم</th>
+              <th className="text-start px-4 py-2 font-bold">القيمة</th>
+              <th className="text-start px-4 py-2 font-bold">الوزن</th>
+              <th className="text-start px-4 py-2 font-bold">المدة (يوم)</th>
+              <th className="text-start px-4 py-2 font-bold">من يوم</th>
+              <th className="text-start px-4 py-2 font-bold">إلى يوم</th>
+              <th className="text-start px-4 py-2 font-bold">نسبة الإنجاز التراكمية</th>
+            </tr>
+          </thead>
+          <tbody>
+            {schedule.sections.map((s) => (
+              <tr key={s.id} className="border-t border-[var(--border)]">
+                <td className="px-4 py-2 font-bold">{s.name}</td>
+                <td className="px-4 py-2 tabular">{fmt(s.saleTotal)} {currency}</td>
+                <td className="px-4 py-2 tabular">{s.weightPct.toFixed(1)}٪</td>
+                <td className="px-4 py-2 tabular">{s.days || "—"}</td>
+                <td className="px-4 py-2 tabular">{s.days > 0 ? s.startDay : "—"}</td>
+                <td className="px-4 py-2 tabular">{s.days > 0 ? s.endDay : "—"}</td>
+                <td className="px-4 py-2 tabular">{s.cumulativePct.toFixed(1)}٪</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="px-5 py-3 font-bold text-sm border-b border-[var(--border)]">ربط الدفعات المالية بنسب الإنجاز</div>
+        {schedule.payments.length === 0 ? (
+          <div className="px-5 py-4 text-sm text-[var(--foreground-muted)]">لا توجد دفعات معرَّفة في تبويب “تحرير”.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-[var(--surface-muted)] text-[var(--foreground-muted)]">
+              <tr>
+                <th className="text-start px-4 py-2 font-bold">الدفعة</th>
+                <th className="text-start px-4 py-2 font-bold">نسبتها من العقد</th>
+                <th className="text-start px-4 py-2 font-bold">نسبة الإنجاز المستحقة عندها</th>
+                <th className="text-start px-4 py-2 font-bold">اليوم المتوقع تقريباً</th>
+                <th className="text-start px-4 py-2 font-bold">أقرب مرحلة (قسم)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {schedule.payments.map((p, i) => (
+                <tr key={i} className="border-t border-[var(--border)]">
+                  <td className="px-4 py-2 font-bold">{p.label}</td>
+                  <td className="px-4 py-2 tabular">{p.pct}٪</td>
+                  <td className="px-4 py-2 tabular">{p.cumulativePct.toFixed(1)}٪</td>
+                  <td className="px-4 py-2 tabular">اليوم {p.targetDay}</td>
+                  <td className="px-4 py-2">{p.milestoneSectionName}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
