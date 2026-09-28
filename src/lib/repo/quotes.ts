@@ -180,7 +180,15 @@ export async function logAudit(quoteId: string, userId: string | null, action: s
   ).run(uid("aud_"), quoteId, userId, action, note);
 }
 
-export async function createQuote(projectId: string, createdBy: string, isDemo = false): Promise<QuoteRow> {
+export async function createQuote(
+  projectId: string,
+  createdBy: string,
+  executionDuration: string,
+  isDemo = false
+): Promise<QuoteRow> {
+  const duration = executionDuration.trim();
+  if (!duration) throw new Error("مدة التنفيذ مطلوبة لإنشاء عرض سعر جديد");
+
   const company = await getCompanySettings();
   const project = (await db.prepare("SELECT * FROM projects WHERE id = ?").get(projectId)) as
     | { client_id: string; default_currency: string }
@@ -212,7 +220,7 @@ export async function createQuote(projectId: string, createdBy: string, isDemo =
     issueDate,
     validUntil,
     project.default_currency || company.default_currency,
-    "",
+    duration,
     company.default_payment_terms,
     "",
     "DRAFT",
