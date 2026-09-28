@@ -145,10 +145,9 @@ async function main() {
   }[];
   const byCategory = (cat: string) => libraryRows.filter((r) => r.main_category === cat);
 
-  const quote = await createQuote(project.id, preparer.id, true);
+  const quote = await createQuote(project.id, preparer.id, "45 يوم عمل", true);
   await updateQuoteMeta(quote.id, {
     title: "عرض سعر تشطيبات فيلا العشار",
-    execution_duration: "45 يوم عمل",
   });
 
   const secTiling = await addSection(quote.id, "أعمال التبليط");
