@@ -166,6 +166,7 @@ export default function QuoteEditor(props: EditorProps) {
     contract_type: quote.contract_type,
     cost_plus_fee_pct: quote.cost_plus_fee_pct,
     total_area_sqm: quote.total_area_sqm,
+    price_per_sqm: quote.price_per_sqm,
     execution_duration_days: quote.execution_duration_days,
   });
   const [pay, setPay] = useState(payments.map((p) => ({ label: p.label, pct: p.pct })));
@@ -229,6 +230,21 @@ export default function QuoteEditor(props: EditorProps) {
     () => buildExecutionSchedule(sections, effectiveItemsById, Number(meta.execution_duration_days) || 0, pay),
     [sections, effectiveItemsById, meta.execution_duration_days, pay]
   );
+
+  // في عقد "بسعر المتر المربع" تُحتسب قيمة العقد من المساحة الكلية × سعر المتر لا من مجموع الفقرات،
+  // لذا نعيد استخدام نفس محرك الخصم/الضريبة عبر "فقرة اصطناعية" واحدة بقيمتها بدل مجموع الفقرات الفعلية،
+  // لضمان تطابق حساب الدفعات هنا مع ما سيظهر فعلياً في مستند العقد.
+  const areaBaseValue = (Number(meta.total_area_sqm) || 0) * (Number(meta.price_per_sqm) || 0);
+  const contractTotals = useMemo(() => {
+    if (meta.contract_type !== "AREA_BASED") return totals;
+    return computeQuoteTotals(
+      [{ id: "area", qty: 1, unitCost: 0, marginPct: 0, manualUnitPrice: areaBaseValue }],
+      { type: meta.discount_type, value: Number(meta.discount_value) || 0 },
+      meta.tax_enabled,
+      Number(meta.tax_pct) || 0,
+      0
+    );
+  }, [meta.contract_type, areaBaseValue, meta.discount_type, meta.discount_value, meta.tax_enabled, meta.tax_pct, totals]);
 
   function persistMeta(patch: Partial<typeof meta>) {
     const next = { ...meta, ...patch };
@@ -874,11 +890,12 @@ export default function QuoteEditor(props: EditorProps) {
                 <select
                   disabled={!editable}
                   defaultValue={meta.contract_type}
-                  onChange={(e) => persistMeta({ contract_type: e.target.value as "LUMP_SUM" | "COST_PLUS" })}
+                  onChange={(e) => persistMeta({ contract_type: e.target.value as "LUMP_SUM" | "COST_PLUS" | "AREA_BASED" })}
                   className={inputCls}
                 >
                   <option value="LUMP_SUM">عقد مبلغ مقطوع</option>
                   <option value="COST_PLUS">عقد كوست بلص (تكلفة + نسبة)</option>
+                  <option value="AREA_BASED">عقد بسعر المتر المربع</option>
                 </select>
               </div>
 
@@ -901,6 +918,29 @@ export default function QuoteEditor(props: EditorProps) {
                 </div>
               ) : (
                 <>
+                  {meta.contract_type === "AREA_BASED" && (
+                    <div className="flex flex-col gap-2 mb-1 pb-3 border-b border-[var(--border)]">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <label className="flex items-center gap-2 text-xs font-bold">
+                          سعر المتر المربع الواحد
+                          <input
+                            disabled={!editable}
+                            type="number"
+                            step="any"
+                            defaultValue={meta.price_per_sqm || ""}
+                            onBlur={(e) => persistMeta({ price_per_sqm: Number(e.target.value) || 0 })}
+                            className={`${inputCls} tabular w-32`}
+                          />
+                        </label>
+                        <span className="text-xs text-[var(--foreground-muted)]">
+                          × المساحة الكلية ({fmt(Number(meta.total_area_sqm) || 0)} م²، من حقل “بيانات العرض” أعلاه) = {fmt(areaBaseValue)}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[var(--foreground-muted)]">
+                        في مستند العقد النهائي: تُذكر الفقرات والكميات دون أسعار أو كلف، وتُحتسب قيمة العقد فقط من المساحة الكلية × سعر المتر أعلاه — قيم الفقرات الداخلية (الكلفة والهامش) تبقى للتتبع الداخلي فقط ولا تظهر للعميل.
+                      </div>
+                    </div>
+                  )}
                   <table className="w-full text-sm">
                     <tbody>
                       {pay.map((p, idx) => (
@@ -911,7 +951,7 @@ export default function QuoteEditor(props: EditorProps) {
                           <td className="py-1 pl-2 w-24">
                             <input disabled={!editable} type="number" defaultValue={p.pct} onBlur={(e) => updatePayPct(idx, Number(e.target.value) || 0)} className={`${inputCls} tabular`} />
                           </td>
-                          <td className="py-1 tabular font-bold w-28 text-left">{fmt(totals.finalTotal * (Number(p.pct) || 0) / 100)}</td>
+                          <td className="py-1 tabular font-bold w-28 text-left">{fmt(contractTotals.finalTotal * (Number(p.pct) || 0) / 100)}</td>
                           {editable && (
                             <td className="w-8">
                               <button onClick={() => removePayment(idx)} className="text-red-600 text-xs">✕</button>
