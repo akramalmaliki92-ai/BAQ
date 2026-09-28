@@ -26,6 +26,7 @@ import {
   approveQuote,
   cancelApproval,
   cancelQuote,
+  reopenQuote,
   recordPriceEdit,
   recordExport,
   getSectionsWithItems,
@@ -185,6 +186,17 @@ export async function cancelQuoteAction(quoteId: string, reason: string): Promis
   const user = await requireUser();
   if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية إلغاء عرض السعر");
   await cancelQuote(quoteId, user.id, reason.trim());
+  revalidatePath(`/quotes/${quoteId}`);
+  revalidatePath("/quotes");
+}
+
+export async function reopenQuoteAction(quoteId: string, reason: string): Promise<void> {
+  const user = await requireUser();
+  if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية استعادة عرض سعر ملغى");
+  const quote = await getQuote(quoteId);
+  if (!quote) throw new ApiError(404, "عرض السعر غير موجود");
+  if (quote.status !== "CANCELLED") throw new ApiError(400, "عرض السعر ليس ملغى أصلاً");
+  await reopenQuote(quoteId, user.id, reason.trim() || "استعادة عرض سعر ملغى للتعديل");
   revalidatePath(`/quotes/${quoteId}`);
   revalidatePath("/quotes");
 }
