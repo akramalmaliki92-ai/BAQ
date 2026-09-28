@@ -45,9 +45,9 @@ async function assertEditable(quoteId: string) {
   return { user, quote };
 }
 
-export async function createQuoteAction(projectId: string): Promise<string> {
+export async function createQuoteAction(projectId: string, executionDuration: string): Promise<string> {
   const user = await requireUser();
-  const quote = await createQuote(projectId, user.id);
+  const quote = await createQuote(projectId, user.id, executionDuration);
   return quote.id;
 }
 
@@ -206,7 +206,7 @@ export async function recordExportAction(quoteId: string, note: string): Promise
   await recordExport(quoteId, user.id, note);
 }
 
-export async function createQuoteAndRedirect(projectId: string): Promise<void> {
-  const id = await createQuoteAction(projectId);
+export async function createQuoteAndRedirect(projectId: string, executionDuration: string): Promise<void> {
+  const id = await createQuoteAction(projectId, executionDuration);
   redirect(`/quotes/${id}`);
 }
