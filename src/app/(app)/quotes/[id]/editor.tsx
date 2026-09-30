@@ -25,6 +25,7 @@ import {
   cancelApprovalAction,
   cancelQuoteAction,
   reopenQuoteAction,
+  updateExecutionDurationDaysAction,
 } from "../actions";
 
 const EDITABLE_STATUSES = ["DRAFT", "NEEDS_REVISION"];
@@ -594,17 +595,27 @@ export default function QuoteEditor(props: EditorProps) {
             <Field label="مدة التنفيذ">
               <input disabled={!editable} defaultValue={meta.execution_duration} onBlur={(e) => persistMeta({ execution_duration: e.target.value })} className={inputCls} placeholder="مثال: 45 يوم عمل" />
             </Field>
-            <Field label="مدة التنفيذ (بالأيام)">
+            <Field label="مدة التنفيذ (بالأيام) — لجدول التنفيذ الزمني الداخلي فقط">
               <input
-                disabled={!editable}
                 type="number"
                 step="1"
                 min="0"
                 defaultValue={meta.execution_duration_days || ""}
-                onBlur={(e) => persistMeta({ execution_duration_days: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
+                onBlur={(e) => {
+                  const days = Math.max(0, Math.round(Number(e.target.value) || 0));
+                  setMeta((m) => ({ ...m, execution_duration_days: days }));
+                  startTransition(() => {
+                    updateExecutionDurationDaysAction(quote.id, days).catch((err: unknown) =>
+                      alert(err instanceof Error ? err.message : "حدث خطأ")
+                    );
+                  });
+                }}
                 className={`${inputCls} tabular`}
                 placeholder="مثال: 45 — لحساب جدول التنفيذ الزمني"
               />
+              <div className="text-[10.5px] text-[var(--foreground-muted)] mt-1">
+                حقل مستقل عن “مدة التنفيذ” أعلاه، ويبقى قابلاً للتعديل دائماً مهما كانت حالة العرض (حتى بعد الاعتماد) — لأنه لا يؤثر على العقد ولا يظهر للعميل، بل يُستخدم فقط لتحديث تبويب “جدول التنفيذ الزمني” فور تغييره.
+              </div>
             </Field>
             <Field label="المساحة الكلية للمشروع (م²)">
               <input
