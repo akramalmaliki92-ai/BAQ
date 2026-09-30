@@ -9,6 +9,7 @@ import {
   getQuote,
   isEditable,
   updateQuoteMeta,
+  updateExecutionDurationDays,
   addSection,
   renameSection,
   deleteSection,
@@ -60,6 +61,14 @@ export async function updateQuoteMetaAction(quoteId: string, input: QuoteMetaInp
   if (input.discount_value != null || input.discount_type) {
     await recordPriceEdit(quoteId, user.id, `تعديل الخصم إلى ${input.discount_value ?? ""} (${input.discount_type ?? ""})`);
   }
+  revalidatePath(`/quotes/${quoteId}`);
+}
+
+// عمداً بلا فحص isEditable: مدة التنفيذ بالأيام تغذّي فقط جدول التنفيذ الزمني الداخلي (لا تظهر
+// للعميل ولا تُغيّر العقد)، لذا تبقى قابلة للتعديل في أي وقت بغض النظر عن حالة عرض السعر.
+export async function updateExecutionDurationDaysAction(quoteId: string, days: number): Promise<void> {
+  await requireUser();
+  await updateExecutionDurationDays(quoteId, days);
   revalidatePath(`/quotes/${quoteId}`);
 }
 
