@@ -341,6 +341,15 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
   );
 }
 
+// مدة التنفيذ بالأيام (execution_duration_days) تُستخدم حصراً لحساب "جدول التنفيذ الزمني" الداخلي —
+// أداة تخطيط داخلية لا تُغيّر نطاق العمل ولا قيمة العقد ولا تظهر للعميل مطلقاً. لذلك، وخلافاً لبقية
+// حقول عرض السعر، يبقى هذا الحقل قابلاً للتعديل في أي وقت وبغض النظر عن حالة العرض (حتى بعد
+// الاعتماد أو الإلغاء)، ليتمكن فريق التنفيذ من تحديث الجدول التقديري متى شاء دون فتح العرض للتعديل.
+export async function updateExecutionDurationDays(id: string, days: number): Promise<void> {
+  const value = Math.max(0, Math.round(Number(days) || 0));
+  await db.prepare("UPDATE quotes SET execution_duration_days=?, updated_at=? WHERE id=?").run(value, nowIso(), id);
+}
+
 /* ---------------- الأقسام ---------------- */
 
 export async function addSection(quoteId: string, name: string): Promise<string> {
