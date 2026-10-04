@@ -12,12 +12,13 @@ interface Item {
 
 const ITEMS: Item[] = [
   { href: "/dashboard", label: "لوحة التحكم" },
-  { href: "/quotes", label: "عروض الأسعار" },
-  { href: "/contracts", label: "العقود" },
-  { href: "/clients", label: "العملاء" },
-  { href: "/projects", label: "المشاريع" },
-  { href: "/plans", label: "مكتبة المخططات" },
-  { href: "/library", label: "مكتبة الفقرات" },
+  // بترتيب خطوات العمل: المخطط ← الزبون ← المشروع ← الفقرات ← العرض ← العقد
+  { href: "/plans", label: "١ · مكتبة المخططات" },
+  { href: "/clients", label: "٢ · العملاء" },
+  { href: "/projects", label: "٣ · المشاريع" },
+  { href: "/library", label: "٤ · مكتبة الفقرات" },
+  { href: "/quotes", label: "٥ · عروض الأسعار" },
+  { href: "/contracts", label: "٦ · العقود" },
   { href: "/users", label: "المستخدمون", roles: ["ADMIN"] },
   { href: "/settings", label: "إعدادات الشركة", roles: ["ADMIN"] },
 ];
