@@ -197,4 +197,9 @@ CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
 CREATE INDEX IF NOT EXISTS idx_projects_client ON projects(client_id);
 CREATE INDEX IF NOT EXISTS idx_audit_quote ON quote_audit_log(quote_id);
 CREATE INDEX IF NOT EXISTS idx_overhead_quote ON quote_overhead_costs(quote_id);
+
+-- روابط المشروع: النموذج ثلاثي الأبعاد (للفريق وللزبون) وملف المشروع — تُضاف بأمان إن لم تكن موجودة
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS model_url TEXT DEFAULT '';
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS client_model_url TEXT DEFAULT '';
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_file_url TEXT DEFAULT '';
 `;

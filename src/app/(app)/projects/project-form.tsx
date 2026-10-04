@@ -68,6 +68,21 @@ export default function ProjectForm({
           <label className="block text-xs font-bold mb-1.5 text-[var(--foreground-muted)]">ملاحظات داخلية</label>
           <textarea name="internal_notes" defaultValue={v.internal_notes} rows={2} className={FIELD_CLS} />
         </div>
+        <div className="sm:col-span-2 border-t border-[var(--border)] pt-4 text-xs font-bold text-[var(--foreground-muted)]">
+          روابط المشروع (اختيارية)
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-bold mb-1.5 text-[var(--foreground-muted)]">النموذج ثلاثي الأبعاد · نسخة الفريق</label>
+          <input name="model_url" type="url" dir="ltr" placeholder="https://claude.ai/artifact/..." defaultValue={v.model_url} className={FIELD_CLS} />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-bold mb-1.5 text-[var(--foreground-muted)]">النموذج ثلاثي الأبعاد · نسخة الزبون</label>
+          <input name="client_model_url" type="url" dir="ltr" placeholder="https://claude.ai/artifact/..." defaultValue={v.client_model_url} className={FIELD_CLS} />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-bold mb-1.5 text-[var(--foreground-muted)]">ملف المشروع (PDF)</label>
+          <input name="project_file_url" type="url" dir="ltr" placeholder="https://..." defaultValue={v.project_file_url} className={FIELD_CLS} />
+        </div>
         <input type="hidden" name="default_currency" value="IQD" />
       </div>
 

@@ -32,6 +32,9 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
           manager_user_id: project.manager_user_id || "",
           status: project.status,
           internal_notes: project.internal_notes,
+          model_url: project.model_url || "",
+          client_model_url: project.client_model_url || "",
+          project_file_url: project.project_file_url || "",
         }}
       />
     </div>

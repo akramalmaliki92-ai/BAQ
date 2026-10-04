@@ -12,6 +12,9 @@ export interface ProjectRow {
   default_currency: string;
   status: "ACTIVE" | "ON_HOLD" | "CLOSED";
   internal_notes: string;
+  model_url: string | null;
+  client_model_url: string | null;
+  project_file_url: string | null;
   is_demo: number;
   created_at: string;
   updated_at: string;
@@ -26,6 +29,9 @@ export interface ProjectInput {
   default_currency?: string;
   status?: ProjectRow["status"];
   internal_notes?: string;
+  model_url?: string;
+  client_model_url?: string;
+  project_file_url?: string;
 }
 
 const BASE_SELECT = `
@@ -62,8 +68,8 @@ export async function getProject(id: string): Promise<ProjectRow | undefined> {
 export async function createProject(input: ProjectInput, createdBy: string, isDemo = false): Promise<ProjectRow> {
   const id = uid("prj_");
   await db.prepare(
-    `INSERT INTO projects (id, name, client_id, location, description, manager_user_id, default_currency, status, internal_notes, is_demo, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO projects (id, name, client_id, location, description, manager_user_id, default_currency, status, internal_notes, model_url, client_model_url, project_file_url, is_demo, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     input.name,
@@ -74,6 +80,9 @@ export async function createProject(input: ProjectInput, createdBy: string, isDe
     input.default_currency || "IQD",
     input.status || "ACTIVE",
     input.internal_notes || "",
+    input.model_url || "",
+    input.client_model_url || "",
+    input.project_file_url || "",
     isDemo ? 1 : 0,
     createdBy
   );
@@ -82,7 +91,7 @@ export async function createProject(input: ProjectInput, createdBy: string, isDe
 
 export async function updateProject(id: string, input: ProjectInput): Promise<void> {
   await db.prepare(
-    `UPDATE projects SET name=?, client_id=?, location=?, description=?, manager_user_id=?, default_currency=?, status=?, internal_notes=?, updated_at=?
+    `UPDATE projects SET name=?, client_id=?, location=?, description=?, manager_user_id=?, default_currency=?, status=?, internal_notes=?, model_url=?, client_model_url=?, project_file_url=?, updated_at=?
      WHERE id=?`
   ).run(
     input.name,
@@ -93,6 +102,9 @@ export async function updateProject(id: string, input: ProjectInput): Promise<vo
     input.default_currency || "IQD",
     input.status || "ACTIVE",
     input.internal_notes || "",
+    input.model_url || "",
+    input.client_model_url || "",
+    input.project_file_url || "",
     nowIso(),
     id
   );

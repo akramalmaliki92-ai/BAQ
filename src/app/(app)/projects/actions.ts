@@ -9,6 +9,12 @@ export interface ProjectFormState {
   values?: Record<string, string>;
 }
 
+// يقبل فقط روابط http/https، ويتجاهل أي نص آخر حتى لا يُحفظ رابط من نوع javascript: أو ما شابه.
+function cleanUrl(v: FormDataEntryValue | null): string {
+  const s = String(v || "").trim();
+  return /^https?:\/\/\S+$/i.test(s) ? s : "";
+}
+
 function readInput(formData: FormData): ProjectInput {
   return {
     name: String(formData.get("name") || "").trim(),
@@ -19,6 +25,9 @@ function readInput(formData: FormData): ProjectInput {
     default_currency: String(formData.get("default_currency") || "IQD"),
     status: (String(formData.get("status") || "ACTIVE") as ProjectInput["status"]),
     internal_notes: String(formData.get("internal_notes") || "").trim(),
+    model_url: cleanUrl(formData.get("model_url")),
+    client_model_url: cleanUrl(formData.get("client_model_url")),
+    project_file_url: cleanUrl(formData.get("project_file_url")),
   };
 }
 

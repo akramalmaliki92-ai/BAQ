@@ -53,6 +53,29 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
+      {(project.model_url || project.client_model_url || project.project_file_url) && (
+        <div className="bg-white rounded-2xl border border-[var(--border)] p-4">
+          <div className="text-xs font-bold text-[var(--foreground-muted)] mb-3">النموذج وملفات المشروع</div>
+          <div className="flex flex-wrap gap-2">
+            {project.model_url && (
+              <a href={project.model_url} target="_blank" rel="noopener noreferrer" className="rounded-xl text-white font-bold text-sm px-4 py-2.5" style={{ background: "var(--brand-dark)" }}>
+                النموذج ثلاثي الأبعاد ↗
+              </a>
+            )}
+            {project.client_model_url && (
+              <a href={project.client_model_url} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-[var(--border)] font-bold text-sm px-4 py-2.5 hover:bg-[var(--surface-muted)]">
+                نسخة الزبون من النموذج ↗
+              </a>
+            )}
+            {project.project_file_url && (
+              <a href={project.project_file_url} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-[var(--border)] font-bold text-sm px-4 py-2.5 hover:bg-[var(--surface-muted)]">
+                ملف المشروع PDF ↗
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {project.description && (
         <div className="bg-white rounded-2xl border border-[var(--border)] p-4 text-sm">{project.description}</div>
       )}
