@@ -202,4 +202,49 @@ CREATE INDEX IF NOT EXISTS idx_overhead_quote ON quote_overhead_costs(quote_id);
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS model_url TEXT DEFAULT '';
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS client_model_url TEXT DEFAULT '';
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_file_url TEXT DEFAULT '';
+
+-- ===== خط الإنتاج: مكتبة المخططات، ونماذج المشاريع ونسخها، ومراحل المنهجية =====
+CREATE TABLE IF NOT EXISTS plan_templates (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'HOUSE' CHECK (kind IN ('HOUSE','APARTMENT','BUILDING','VILLA','OTHER')),
+  plot_w REAL NOT NULL DEFAULT 0,
+  plot_d REAL NOT NULL DEFAULT 0,
+  floors INTEGER NOT NULL DEFAULT 1,
+  built_area REAL NOT NULL DEFAULT 0,
+  bedrooms INTEGER NOT NULL DEFAULT 0,
+  description TEXT DEFAULT '',
+  source TEXT DEFAULT '',
+  thumbnail TEXT DEFAULT '',
+  model_js TEXT NOT NULL DEFAULT '',
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT to_char(timezone('utc', now()), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+  updated_at TEXT NOT NULL DEFAULT to_char(timezone('utc', now()), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+);
+
+CREATE TABLE IF NOT EXISTS project_models (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
+  template_id TEXT REFERENCES plan_templates(id),
+  share_token TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT to_char(timezone('utc', now()), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+);
+
+CREATE TABLE IF NOT EXISTS model_versions (
+  id TEXT PRIMARY KEY,
+  model_id TEXT NOT NULL REFERENCES project_models(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  stage INTEGER NOT NULL DEFAULT 1,
+  note TEXT DEFAULT '',
+  model_js TEXT NOT NULL,
+  created_by TEXT DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT to_char(timezone('utc', now()), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+  UNIQUE (model_id, version)
+);
+
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS stages_json TEXT DEFAULT '{}';
+ALTER TABLE plan_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_models ENABLE ROW LEVEL SECURITY;
+ALTER TABLE model_versions ENABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_model_versions_model ON model_versions(model_id);
 `;

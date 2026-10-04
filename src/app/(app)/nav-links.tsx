@@ -16,6 +16,7 @@ const ITEMS: Item[] = [
   { href: "/contracts", label: "العقود" },
   { href: "/clients", label: "العملاء" },
   { href: "/projects", label: "المشاريع" },
+  { href: "/plans", label: "مكتبة المخططات" },
   { href: "/library", label: "مكتبة الفقرات" },
   { href: "/users", label: "المستخدمون", roles: ["ADMIN"] },
   { href: "/settings", label: "إعدادات الشركة", roles: ["ADMIN"] },
