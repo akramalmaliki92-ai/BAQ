@@ -3,7 +3,7 @@ import { VIEWER_HEAD } from "./viewerHead";
 // يبني صفحة العارض الكاملة: واجهة القالب + بيانات المشروع (model_js) + المحرك العام.
 // تُخدَم هذه الصفحة دائماً مع ترويسة CSP «sandbox allow-scripts» فتعمل بأصل معزول (opaque origin)
 // لا يصل إلى جلسة الموقع ولا إلى ملفات تعريف الارتباط، حتى لو فُتحت في تبويب مستقل.
-export const ENGINE_VERSION = "65e92f499c";
+export const ENGINE_VERSION = "7a1c3e0952";
 
 export function buildViewerHtml(modelJs: string, clientView: boolean): string {
   const safeJs = modelJs.replace(/<\/script/gi, "<\\/script");
