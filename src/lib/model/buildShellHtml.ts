@@ -3,7 +3,7 @@ import { ENGINE_VERSION } from "./buildViewerHtml";
 
 // العارض الموحّد لروابط الزبائن: نفس الواجهة والشعار والهوية والأزرار لكل مشروع.
 // المشهد إما نموذج المحرك العام (engine) أو مشهد مخصص في public/v/s/<scene>.js.
-export const SHELL_VERSION = "20261005a";
+export const SHELL_VERSION = "20261005b";
 
 export interface ShellMeta {
   projectName: string;
@@ -73,7 +73,7 @@ export function buildShellHtml(meta: ShellMeta, scene: string, modelJs?: string)
     '<div class="bq-views" id="bq-views"></div>' +
     '<div class="bq-load" id="bq-load"><img src="/logo.png" alt=""></div>' +
     "</section></div></div>\n" +
-    `<script src="/v/core.js?v=${v}"></script>\n<script src="/v/shell.js?v=${v}"></script>\n` +
+    `<script src="/v/core.js?v=${v}"></script>\n<script src="/v/shell.js?v=${v}"></script>\n<script src="/v/kit.js?v=${v}"></script>\n` +
     sceneTags +
     "\n</body></html>"
   );

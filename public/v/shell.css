@@ -124,3 +124,13 @@ body{background:var(--cr2);color:var(--br);font-family:var(--ar);font-size:14px;
 .bq-stage>#stage{position:absolute;inset:0}
 #stage canvas{display:block;width:100%;height:100%;touch-action:none}
 .bq-pane table td,.bq-pane table th{white-space:normal}
+
+.bq-simk,.bq-occk,.bq-sunk{display:flex;flex-direction:column;gap:9px}
+.bq-pane .tw{max-height:300px;overflow:auto}
+.bq-pane tr.grp td{background:rgba(113,130,109,.10)}
+.bq-pane .stats{display:flex;flex-direction:column;gap:2px}
+.bq-pane .readout{display:flex;flex-direction:column;gap:2px}
+.bq-pane .readout>div{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid rgba(59,48,38,.08);font-size:13px}
+.bq-pane .readout>div b{direction:ltr;unicode-bidi:isolate}
+.bq-pane .rowf{display:flex;align-items:center;gap:10px}
+.bq-pane .rowf input[type=range]{flex:1}

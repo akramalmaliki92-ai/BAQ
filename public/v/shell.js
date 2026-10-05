@@ -73,7 +73,7 @@ function syncLayers(){if(!spec)return;var lg=$("#bq-legend"),h="";
  LAYERS.forEach(function(d){var ly=spec.layers&&spec.layers[d[0]];var b=$("#bq-l-"+d[0]);if(!b||!ly)return;var on=!!ly.get();b.setAttribute("aria-pressed",String(on));
   if(on&&spec.legends&&spec.legends[d[0]])h+="<b>"+esc(d[1])+"</b>"+spec.legends[d[0]].map(function(x){return "<span><i style='background:"+x[0]+"'></i>"+esc(x[1])+"</span>";}).join("");});
  lg.innerHTML=h;lg.hidden=!h;syncFloors();}
-function syncSims(){if(!spec)return;var sims=spec.sims||{};
+function syncSims(){if(!spec)return;var sims=spec.sims||{};syncFloors();
  if(spec.variants){var cv=spec.variants.get();document.querySelectorAll(".bq-var").forEach(function(b){b.setAttribute("aria-pressed",String(+b.dataset.i===cv));});}
  var n=$("#bq-night");if(n&&sims.night)n.setAttribute("aria-pressed",String(!!sims.night.get()));
  var w=sims.walk;if(w){var t=$("#bq-tour");if(t&&w.tour)t.textContent=w.tour.on()?"إيقاف الجولة":"جولة داخل المشروع";var wb=$("#bq-walk");var on=w.walk&&w.walk.on();if(wb)wb.setAttribute("aria-pressed",String(!!on));$("#bq-pad").hidden=!on;}
