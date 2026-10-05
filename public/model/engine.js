@@ -523,12 +523,33 @@ function renderPanel(){
 }
 function setPath(p,v){ const k=p.split("."); let o=S; for(let i=0;i<k.length-1;i++) o=o[k[i]]; o[k[k.length-1]]=v; }
 function update(rePanel){ persist(); build3D(); if(mode==="plan") buildPlan(); if(rePanel) renderPanel(); }
-function selectWall(i, fromView){ if(CLIENT) return;
+function selectWall(i, fromView){ if(CLIENT){ showClientMeasure(i); return; }
   sel = (i===sel && !fromView) ? null : i;
   if(sel!==null && tab!=="walls"){ tab="walls"; renderPanel(); }
   else document.querySelectorAll(".row[data-i]").forEach(r=>r.classList.toggle("sel", +r.dataset.i===sel));
   build3D(); if(mode==="plan") buildPlan();
   if(fromView && sel!==null){ const r=document.getElementById("row-"+sel); if(r) r.scrollIntoView({block:"nearest",behavior:"smooth"}); }
+}
+// Client-only read-only measurement card on wall click (native engine panel/CSS vars
+// are hidden in the branded shell, so this appends a standalone, explicitly styled card to document.body).
+function showClientMeasure(i){
+  let box = document.getElementById("clientMeasure");
+  if(!box){
+    box = document.createElement("div");
+    box.id = "clientMeasure";
+    box.style.cssText = "position:fixed;z-index:50;bottom:16px;inset-inline-end:16px;max-width:260px;"+
+      "background:#fff;color:#1d2a2f;border:1px solid #d3dad7;border-radius:10px;padding:10px 14px;"+
+      "font-size:13px;line-height:1.6;box-shadow:0 4px 16px rgba(0,0,0,.18);font-family:inherit";
+    document.body.appendChild(box);
+  }
+  const Fl = F();
+  const w = i!==null && i!==undefined ? Fl.walls[i] : null;
+  if(!w){ box.hidden = true; return; }
+  const L = Math.hypot(w.b[0]-w.a[0], w.b[1]-w.a[1]);
+  const H = w.h || Fl.H;
+  box.hidden = false;
+  box.innerHTML = "<b>"+esc(w.n || ("جدار "+(i+1)))+"</b><br>الطول: "+L.toFixed(2)+" م · الارتفاع: "+(+H).toFixed(2)+" م"+
+    (w.t ? (" · السماكة: "+(+w.t).toFixed(2)+" م") : "");
 }
 document.getElementById("floors").addEventListener("click",e=>{
   const b=e.target.closest("button[data-fl]"); if(!b) return;
