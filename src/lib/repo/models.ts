@@ -79,6 +79,7 @@ export interface ProjectModelRow {
   project_id: string;
   template_id: string | null;
   share_token: string;
+  scene?: string; // "engine" = نموذج المحرك العام؛ غير ذلك = مشهد مخصص في public/v/s/<scene>.js
   created_at: string;
 }
 
