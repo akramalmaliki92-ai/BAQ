@@ -155,7 +155,7 @@ function mepPlanSvg(fi,X,Y){
 const MAT_CONC="#a3abb0", MAT_CRIT="#d9822b";
 function buildStructFloor(fi,e,H){
   const conc=mat(MAT_CONC), crit=mat(MAT_CRIT), slabM=mat("#c9d2d6",{transparent:true,opacity:.28,depthWrite:false});
-  if(fi===0){ const r=addBox(0,0,-STRUCT.fnd.raft_h/1000,S.site.w,S.site.d,0,"#7d8589"); }
+  if(fi===0 && STRUCT.fnd && STRUCT.fnd.raft_h){ addBox(0,0,-STRUCT.fnd.raft_h/1000,S.site.w,S.site.d,0,"#7d8589"); }
   storeyCols(fi).forEach(c=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(c.s,H,c.s),conc); m.position.copy(P(c.x,c.y,e+H/2)); m.castShadow=true; root.add(m); });
   SCORES.forEach(b=>{ const t=.3;
     [[b[0],b[1],b[2],b[1]+t],[b[0],b[3]-t,b[2],b[3]],[b[0],b[1],b[0]+t,b[3]],[b[2]-t,b[1],b[2],b[3]]].forEach(r=>addBox(r[0],r[1],e,r[2],r[3],e+H,"#8c959a")); });
@@ -169,7 +169,8 @@ function buildStructFloor(fi,e,H){
     });
     // slab of level L (transparent)
     const t = L===4?.2:.15;
-    const y0 = (L===1||L===2)?7.39:0;
+    /* Fl.voidFront: optional open-void depth (m) at the front of this level's slab (e.g. an atrium) */
+    const y0 = +FL()[fi].voidFront || 0;
     if(L<5){
       const sh=new THREE.Shape([new THREE.Vector2(0,y0),new THREE.Vector2(S.site.w,y0),new THREE.Vector2(S.site.w,S.site.d),new THREE.Vector2(0,S.site.d)]);
       HOLES.forEach(h=>sh.holes.push(new THREE.Path([new THREE.Vector2(h[0],h[1]),new THREE.Vector2(h[0],h[3]),new THREE.Vector2(h[2],h[3]),new THREE.Vector2(h[2],h[1])])));
@@ -182,11 +183,12 @@ function buildStructFloor(fi,e,H){
 function Fl_stairs(fi){ return FL()[fi].stairs!==false; }
 function structLabels(){
   const e=elev(S.cur), H=+F().H, out=[];
-  if(S.cur===0) out.push(["لبشة "+(STRUCT.fnd.raft_h/10)+" سم",12.5,2,-.4]);
+  if(S.cur===0 && STRUCT.fnd && STRUCT.fnd.raft_h) out.push(["لبشة "+(STRUCT.fnd.raft_h/10)+" سم",S.site.w/2,2,-.4]);
   const L=S.cur+1;
-  if(L===1||L===2) out.push(["كابولي "+STRUCT.cant[String(L)].b/10+"×"+STRUCT.cant[String(L)].h/10,12.5,8.4,H]);
-  if(L===3||L===4){ const a=STRUCT.girders[`9.75_${L}`], b=STRUCT.girders[`15.25_${L}`]; out.push(["جسر ناقل "+a.b/10+"×"+a.h/10,9.75,5,H],["جسر ناقل "+b.b/10+"×"+b.h/10,15.25,3,H]); }
-  out.push(["نواة خرسانية",12.5,12.5,H*.6],["نواة خرسانية",12.5,27.5,H*.6]);
+  if((L===1||L===2) && STRUCT.cant && STRUCT.cant[String(L)]){ const c=STRUCT.cant[String(L)]; out.push(["كابولي "+c.b/10+"×"+c.h/10,S.site.w/2,8.4,H]); }
+  if((L===3||L===4) && STRUCT.girders){ const a=STRUCT.girders[`9.75_${L}`], b=STRUCT.girders[`15.25_${L}`]; if(a&&b) out.push(["جسر ناقل "+a.b/10+"×"+a.h/10,9.75,5,H],["جسر ناقل "+b.b/10+"×"+b.h/10,15.25,3,H]); }
+  /* STRUCT.cores: optional [x,y] list of shear-wall/elevator core centres, for projects that have one */
+  (STRUCT.cores||[]).forEach(([x,y])=>out.push(["نواة خرسانية",x,y,H*.6]));
   return out.map(([t,x,y,z])=>[t,P(x,y,e+z)]);
 }
 function buildFloor(fi){
@@ -493,15 +495,16 @@ function renderPanel(){
   } else if(tab==="struct"){ projStructTab(pane);
   } else if(tab==="mep"){ projMepTab(pane);
   } else if(tab==="sim"){
-    const D=SIMDATA[SIM.sc];
+    const D=SIMDATA[SIM.sc]||{};
+    const bays=Object.keys(BAYNAME||{});
     const chip=([t,c])=>`<span class="chip ${c}">${t}</span>`;
-    pane.innerHTML = `<p class="hint">سيارة بطول 4.85 م وعرض 1.85 م تدخل من البوابة وتصطف في كل موقف ثم تخرج، والمواقف الثلاثة الأخرى مشغولة. اشترطتُ أن تبقى السيارة 30 سم على الأقل بعيداً عن كل جدار وعمود ورصيف وسيارة، وأن يكون نصف قطر الدوران عند المحور الخلفي 5 م، وهو دوران مريح دون أقصى انعطاف للمقود.</p>
-    ${["B1","B2","B3","B4"].map(b=>{ const e=D[b]; return `<div class="row${SIM.bay===b?" sel":""}" style="cursor:default">
+    pane.innerHTML = (bays.length ? `<p class="hint">سيارة بطول 4.85 م وعرض 1.85 م تدخل من البوابة وتصطف في كل موقف ثم تخرج. اشترطتُ أن تبقى السيارة 30 سم على الأقل بعيداً عن كل جدار وعمود ورصيف وسيارة، وأن يكون نصف قطر الدوران عند المحور الخلفي 5 م، وهو دوران مريح دون أقصى انعطاف للمقود.</p>` : `<p class="hint">لا توجد مواقف تحتاج محاكاة دخول وخروج في هذا المشروع.</p>`) +
+    bays.map(b=>{ const e=D[b]; if(!e) return ""; return `<div class="row${SIM.bay===b?" sel":""}" style="cursor:default">
       <div class="rh"><b style="flex:1">${BAYNAME[b]}</b><span class="hint">${e.mode==="rev"?"اصطفاف بالرجوع":"اصطفاف بالأمام"}</span></div>
       <div class="simrow"><span>الدخول</span>${chip(simLevel(e,"in"))}${e.in.ok?`<span class="mono">${e.in.len} م · خلوص ${e.in.clear} م</span><button class="btn sm" data-play="${b}:in" id="pl-${b}-in">تشغيل</button>`:""}</div>
-      <div class="simrow"><span>الخروج</span>${chip(simLevel(e,"out"))}${e.out.ok?`<span class="mono">${e.out.len} م · خلوص ${e.out.clear} م</span><button class="btn sm" data-play="${b}:out" id="pl-${b}-out">تشغيل</button>`:""}</div></div>`; }).join("")}
-    ${SIM.on?`<div class="btns"><button class="btn danger" id="simstop">إيقاف المحاكاة</button></div>`:""}
-    <p class="hint">الخط الأزرق تقدّم والبرتقالي رجوع. «لم أجد مساراً» تعني أن المخطِّط لم يجد مساراً يحفظ مسافة 30 سم، لا أن الدخول مستحيل بحذر شديد.</p>`;
+      <div class="simrow"><span>الخروج</span>${chip(simLevel(e,"out"))}${e.out.ok?`<span class="mono">${e.out.len} م · خلوص ${e.out.clear} م</span><button class="btn sm" data-play="${b}:out" id="pl-${b}-out">تشغيل</button>`:""}</div></div>`; }).join("") +
+    (SIM.on?`<div class="btns"><button class="btn danger" id="simstop">إيقاف المحاكاة</button></div>`:"") +
+    (bays.length ? `<p class="hint">الخط الأزرق تقدّم والبرتقالي رجوع. «لم أجد مساراً» تعني أن المخطِّط لم يجد مساراً يحفظ مسافة 30 سم، لا أن الدخول مستحيل بحذر شديد.</p>` : "");
   } else if(tab==="notes"){
     const open=S.notes.filter(x=>!x.done).length;
     pane.innerHTML = (S.variant==="p" ? `<fieldset><legend>ما تغيّر في النسخة المقترحة</legend>${CHANGES.map((c,i)=>`<div class="row" style="flex-direction:row;gap:10px;cursor:default"><span class="num">${i+1}</span><span style="flex:1;min-width:0">${esc(c)}</span></div>`).join("")}</fieldset>` : "") + `<p class="hint">ما لاحظته في المخططات ولم أصححه. رسمت كل شيء كما هو، وهذه البنود هي مرحلة التحسين: علّم البند بعد أن نعالجه. المتبقي <b>${open}</b> من ${S.notes.length}.</p>` +
