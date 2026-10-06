@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { requirePageUser } from "@/lib/auth/guard";
-import { listPlans, KIND_LABEL, type PlanKind } from "@/lib/repo/models";
+import { listPlans, listDwgPlans, KIND_LABEL, type PlanKind } from "@/lib/repo/models";
 
 const FIELD = "rounded-xl border border-[var(--border)] px-3 py-2 text-sm bg-white";
 const num = (v?: string) => (v && !isNaN(Number(v)) && Number(v) > 0 ? Number(v) : undefined);
+// نوع إضافي في فلتر "النوع" يُحوّل المصدر إلى مكتبة المخططات المرجعية (DWG) بدل مكتبة النماذج
+// ثلاثية الأبعاد — قيمته ليست من PlanKind لأنها جدول مختلف كلياً (dwg_plan_library).
+const DWG_KIND = "DWG";
+const DWG_LABEL = "مخطط مرجعي (DWG)";
 
 export default async function PlansPage({
   searchParams,
@@ -12,14 +16,26 @@ export default async function PlansPage({
 }) {
   await requirePageUser();
   const sp = await searchParams;
-  const plans = await listPlans({
-    kind: sp.kind && sp.kind in KIND_LABEL ? sp.kind : undefined,
-    maxWidth: num(sp.w),
-    maxDepth: num(sp.d),
-    minArea: num(sp.amin),
-    maxArea: num(sp.amax),
-    floors: num(sp.fl),
-  });
+  const isDwg = sp.kind === DWG_KIND;
+  const plans = isDwg
+    ? []
+    : await listPlans({
+        kind: sp.kind && sp.kind in KIND_LABEL ? sp.kind : undefined,
+        maxWidth: num(sp.w),
+        maxDepth: num(sp.d),
+        minArea: num(sp.amin),
+        maxArea: num(sp.amax),
+        floors: num(sp.fl),
+      });
+  const dwgPlans = isDwg
+    ? await listDwgPlans({
+        maxWidth: num(sp.w),
+        maxDepth: num(sp.d),
+        minArea: num(sp.amin),
+        maxArea: num(sp.amax),
+        floors: num(sp.fl),
+      })
+    : [];
   const q = sp.project ? `?project=${encodeURIComponent(sp.project)}` : "";
 
   return (
@@ -40,6 +56,7 @@ export default async function PlansPage({
             {(Object.keys(KIND_LABEL) as PlanKind[]).map((k) => (
               <option key={k} value={k}>{KIND_LABEL[k]}</option>
             ))}
+            <option value={DWG_KIND}>{DWG_LABEL}</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs font-bold text-[var(--foreground-muted)]">
@@ -68,7 +85,54 @@ export default async function PlansPage({
         <Link href={`/plans${q}`} className="text-sm font-bold text-[var(--foreground-muted)] py-2.5">مسح</Link>
       </form>
 
-      {plans.length === 0 ? (
+      {isDwg ? (
+        dwgPlans.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-[var(--border)] px-4 py-10 text-center text-sm text-[var(--foreground-muted)]">
+            لا توجد مخططات DWG مطابقة لهذا البحث.
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {dwgPlans.map((p) => (
+              <div key={p.id} className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden flex flex-col">
+                <div className="p-4 flex flex-col gap-1.5 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-extrabold text-xs tabular break-all">{p.plan_name}</span>
+                    <span className="text-[11px] font-bold rounded-full px-2.5 py-0.5 bg-[var(--surface-muted)] shrink-0">{DWG_LABEL}</span>
+                  </div>
+                  <div className="text-xs text-[var(--foreground-muted)] tabular">
+                    الواجهة {p.frontage_m === "غ" ? "غير محددة" : `${p.frontage_m} م`} × العمق{" "}
+                    {p.depth_m === "غ" ? "غير محددة" : `${p.depth_m} م`} · {p.floors} طابق
+                    {" · "}
+                    {p.area_m2 ? `${Math.round(p.area_m2)} م² مبنية` : "المساحة غير محددة"}
+                  </div>
+                  <div className="text-xs text-[var(--foreground-muted)]">
+                    قطعة زاوية: {p.is_corner_lot ? "نعم" : "لا"}
+                  </div>
+                  <div className="text-xs text-[var(--foreground-muted)]">
+                    المصدر:{" "}
+                    {p.source_url ? (
+                      <a href={p.source_url} target="_blank" rel="noopener noreferrer" className="underline">
+                        {p.source_name}
+                      </a>
+                    ) : (
+                      p.source_name
+                    )}
+                  </div>
+                </div>
+                <a
+                  href={p.drive_file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-center text-white font-bold text-sm px-4 py-2.5"
+                  style={{ background: "var(--brand-dark)" }}
+                >
+                  فتح الملف الأصلي
+                </a>
+              </div>
+            ))}
+          </div>
+        )
+      ) : plans.length === 0 ? (
         <div className="bg-white rounded-2xl border border-[var(--border)] px-4 py-10 text-center text-sm text-[var(--foreground-muted)]">
           لا توجد مخططات مطابقة. لإضافة مخطط إلى المكتبة أرسل صوره إلى Claude مع عبارة «أضف هذا المخطط إلى مكتبة المخططات».
         </div>
