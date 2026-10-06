@@ -73,6 +73,49 @@ export async function getPlanModelJs(id: string): Promise<string | undefined> {
   return decodeModelJs(r?.model_js);
 }
 
+// ===== مكتبة المخططات المرجعية (DWG مسطّحة من الإنترنت — بلا نموذج ثلاثي الأبعاد) =====
+export interface DwgPlanRow {
+  id: string;
+  plan_name: string;
+  area_m2: number | null;
+  floors: number;
+  frontage_m: string;
+  depth_m: string;
+  is_corner_lot: number;
+  file_type: string;
+  drive_file_url: string;
+  source_name: string;
+  source_url: string;
+  notes: string;
+  active: number;
+}
+
+const DWG_PLAN_COLS =
+  "id, plan_name, area_m2, floors, frontage_m, depth_m, is_corner_lot, file_type, drive_file_url, source_name, source_url, notes, active";
+// بعض السجلات مصدرها الأصلي لم يذكر الأبعاد، فتُخزَّن هذه الحقول كنص وقد تحمل قيمة غير رقمية
+// ("غير معروف")؛ هذا النمط يتحقق أن القيمة رقم صالح قبل أي مقارنة رقمية عليها.
+const DWG_NUMERIC_RE = "^[0-9]+(\\.[0-9]+)?$";
+
+export async function listDwgPlans(f: {
+  minArea?: number;
+  maxArea?: number;
+  maxWidth?: number;
+  maxDepth?: number;
+  floors?: number;
+}): Promise<DwgPlanRow[]> {
+  const where: string[] = ["active = 1"];
+  const p: (string | number)[] = [];
+  if (f.minArea) { where.push("area_m2 >= ?"); p.push(f.minArea); }
+  if (f.maxArea) { where.push("area_m2 <= ?"); p.push(f.maxArea); }
+  // القطعة يجب أن تتسع للمخطط: واجهة المخطط وعمقه لا يتجاوزان أبعاد قطعة الزبون
+  if (f.maxWidth) { where.push("frontage_m ~ ? AND frontage_m::real <= ?"); p.push(DWG_NUMERIC_RE, f.maxWidth); }
+  if (f.maxDepth) { where.push("depth_m ~ ? AND depth_m::real <= ?"); p.push(DWG_NUMERIC_RE, f.maxDepth); }
+  if (f.floors) { where.push("floors = ?"); p.push(f.floors); }
+  return (await db
+    .prepare(`SELECT ${DWG_PLAN_COLS} FROM dwg_plan_library WHERE ${where.join(" AND ")} ORDER BY plan_name ASC`)
+    .all(...p)) as unknown as DwgPlanRow[];
+}
+
 // ===== نموذج المشروع ونسخه =====
 export interface ProjectModelRow {
   id: string;
