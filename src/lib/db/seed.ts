@@ -145,7 +145,7 @@ async function main() {
   }[];
   const byCategory = (cat: string) => libraryRows.filter((r) => r.main_category === cat);
 
-  const quote = await createQuote(project.id, preparer.id, "45 يوم عمل", true);
+  const quote = await createQuote(project.id, preparer.id, 45, true);
   await updateQuoteMeta(quote.id, {
     title: "عرض سعر تشطيبات فيلا العشار",
   });

@@ -6,6 +6,7 @@ import { amountToArabicWords } from "@/lib/pricing/numberToArabicWords";
 import type { QuoteRow, SectionWithItems, PaymentRow, OverheadCostRow } from "@/lib/repo/quotes";
 import type { CompanySettings } from "@/lib/repo/settings";
 import { LOGO_DATA_URI } from "./logoBase64";
+import { formatExecutionDuration } from "@/lib/format/duration";
 
 function esc(s: string | null | undefined): string {
   return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -192,7 +193,7 @@ export function buildQuoteHtml(
   <div class="meta-grid">
     <div><span class="k">العميل: </span>${esc(quote.client_name)}</div>
     <div><span class="k">المشروع: </span>${esc(quote.project_name)}</div>
-    ${quote.execution_duration ? `<div><span class="k">مدة التنفيذ: </span>${esc(quote.execution_duration)}</div>` : ""}
+    ${quote.execution_duration_days ? `<div><span class="k">مدة التنفيذ: </span>${esc(formatExecutionDuration(quote.execution_duration_days))}</div>` : ""}
   </div>
 
   ${quote.intro_text ? `<div class="intro">${esc(quote.intro_text)}</div>` : ""}

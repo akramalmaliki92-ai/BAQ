@@ -7,6 +7,7 @@ import type { QuoteRow, SectionWithItems, PaymentRow, OverheadCostRow } from "@/
 import type { CompanySettings } from "@/lib/repo/settings";
 import type { ClientRow } from "@/lib/repo/clients";
 import { LOGO_DATA_URI } from "./logoBase64";
+import { formatExecutionDuration } from "@/lib/format/duration";
 
 function esc(s: string | null | undefined): string {
   return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -338,7 +339,7 @@ export function buildContractHtml(
 
   <div class="article">
     <div class="article-title">المادة الخامسة — مدة التنفيذ</div>
-    <div class="article-body">${quote.execution_duration ? esc(quote.execution_duration) : "تُحدَّد مدة التنفيذ باتفاق الطرفين، وتبدأ من تاريخ استلام الدفعة الأولى وتسليم الموقع جاهزاً لمباشرة العمل."}</div>
+    <div class="article-body">${quote.execution_duration_days ? esc(formatExecutionDuration(quote.execution_duration_days)) : "تُحدَّد مدة التنفيذ باتفاق الطرفين، وتبدأ من تاريخ استلام الدفعة الأولى وتسليم الموقع جاهزاً لمباشرة العمل."}</div>
   </div>
 
   <div class="article">

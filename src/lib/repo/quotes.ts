@@ -18,6 +18,9 @@ export interface QuoteRow {
   currency: string;
   execution_duration: string;
   payment_terms: string;
+  // ملاحظة: execution_duration (نص حر) عمود قديم غير مستخدم في المنطق الحالي، أُبقي عليه في
+  // قاعدة البيانات لتفادي ترحيل مُدمِّر، لكن مدة التنفيذ الفعلية الوحيدة في كل الشاشات
+  // والمستندات (عرض السعر والعقد والجدول الزمني) هي execution_duration_days فقط.
   internal_notes: string;
   status: QuoteStatus;
   discount_type: "PERCENT" | "FIXED";
@@ -185,11 +188,11 @@ export async function logAudit(quoteId: string, userId: string | null, action: s
 export async function createQuote(
   projectId: string,
   createdBy: string,
-  executionDuration: string,
+  executionDurationDays: number,
   isDemo = false
 ): Promise<QuoteRow> {
-  const duration = executionDuration.trim();
-  if (!duration) throw new Error("مدة التنفيذ مطلوبة لإنشاء عرض سعر جديد");
+  const days = Math.max(0, Math.round(Number(executionDurationDays) || 0));
+  if (!days) throw new Error("مدة التنفيذ (بالأيام) مطلوبة لإنشاء عرض سعر جديد");
 
   const company = await getCompanySettings();
   const project = (await db.prepare("SELECT * FROM projects WHERE id = ?").get(projectId)) as
@@ -207,7 +210,7 @@ export async function createQuote(
   await db.prepare(
     `INSERT INTO quotes (
       id, number, project_id, client_id, title, intro_text, outro_text, issue_date, valid_until,
-      currency, execution_duration, payment_terms, internal_notes, status,
+      currency, execution_duration_days, payment_terms, internal_notes, status,
       discount_type, discount_value, tax_enabled, tax_pct, min_margin_pct, hide_unit_price,
       is_demo, created_by
     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
@@ -222,7 +225,7 @@ export async function createQuote(
     issueDate,
     validUntil,
     project.default_currency || company.default_currency,
-    duration,
+    days,
     company.default_payment_terms,
     "",
     "DRAFT",
@@ -256,7 +259,6 @@ export interface QuoteMetaInput {
   issue_date?: string;
   valid_until?: string | null;
   currency?: string;
-  execution_duration?: string;
   payment_terms?: string;
   internal_notes?: string;
   discount_type?: "PERCENT" | "FIXED";
@@ -299,7 +301,6 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
     issue_date: input.issue_date ?? current.issue_date,
     valid_until: input.valid_until !== undefined ? input.valid_until : current.valid_until,
     currency: input.currency ?? current.currency,
-    execution_duration: input.execution_duration ?? current.execution_duration,
     payment_terms: input.payment_terms ?? current.payment_terms,
     internal_notes: input.internal_notes ?? current.internal_notes,
     discount_type: input.discount_type ?? current.discount_type,
@@ -310,7 +311,7 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
 
   await db.prepare(
     `UPDATE quotes SET title=?, intro_text=?, outro_text=?, issue_date=?, valid_until=?, currency=?,
-     execution_duration=?, payment_terms=?, internal_notes=?, discount_type=?, discount_value=?,
+     payment_terms=?, internal_notes=?, discount_type=?, discount_value=?,
      tax_enabled=?, tax_pct=?, min_margin_pct=?, hide_unit_price=?, distribute_overhead=?,
      contract_type=?, cost_plus_fee_pct=?, total_area_sqm=?, price_per_sqm=?, execution_duration_days=?, updated_at=?
      WHERE id=?`
@@ -321,7 +322,6 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
     merged.issue_date,
     merged.valid_until,
     merged.currency,
-    merged.execution_duration,
     merged.payment_terms,
     merged.internal_notes,
     merged.discount_type,
@@ -339,15 +339,6 @@ export async function updateQuoteMeta(id: string, input: QuoteMetaInput): Promis
     nowIso(),
     id
   );
-}
-
-// مدة التنفيذ بالأيام (execution_duration_days) تُستخدم حصراً لحساب "جدول التنفيذ الزمني" الداخلي —
-// أداة تخطيط داخلية لا تُغيّر نطاق العمل ولا قيمة العقد ولا تظهر للعميل مطلقاً. لذلك، وخلافاً لبقية
-// حقول عرض السعر، يبقى هذا الحقل قابلاً للتعديل في أي وقت وبغض النظر عن حالة العرض (حتى بعد
-// الاعتماد أو الإلغاء)، ليتمكن فريق التنفيذ من تحديث الجدول التقديري متى شاء دون فتح العرض للتعديل.
-export async function updateExecutionDurationDays(id: string, days: number): Promise<void> {
-  const value = Math.max(0, Math.round(Number(days) || 0));
-  await db.prepare("UPDATE quotes SET execution_duration_days=?, updated_at=? WHERE id=?").run(value, nowIso(), id);
 }
 
 /* ---------------- الأقسام ---------------- */

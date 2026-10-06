@@ -67,14 +67,14 @@ export async function createQuoteWithEntitiesAction(
     return { error: "يجب اختيار مشروع أو إنشاء مشروع جديد", values };
   }
 
-  const executionDuration = String(formData.get("execution_duration") || "").trim();
-  if (!executionDuration) {
-    return { error: "مدة التنفيذ مطلوبة، ولا يمكن إنشاء عرض السعر بلا تحديدها", values };
+  const executionDurationDays = Math.round(Number(formData.get("execution_duration_days")) || 0);
+  if (!executionDurationDays || executionDurationDays <= 0) {
+    return { error: "مدة التنفيذ (بالأيام) مطلوبة، ولا يمكن إنشاء عرض السعر بلا تحديدها", values };
   }
 
   let quoteId: string;
   try {
-    const quote = await createQuote(projectId, user.id, executionDuration);
+    const quote = await createQuote(projectId, user.id, executionDurationDays);
     quoteId = quote.id;
   } catch (e) {
     const message = e instanceof Error ? e.message : "تعذّر إنشاء عرض السعر";

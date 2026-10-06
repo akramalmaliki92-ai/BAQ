@@ -25,8 +25,8 @@ import {
   cancelApprovalAction,
   cancelQuoteAction,
   reopenQuoteAction,
-  updateExecutionDurationDaysAction,
 } from "../actions";
+import { formatExecutionDuration } from "@/lib/format/duration";
 
 const EDITABLE_STATUSES = ["DRAFT", "NEEDS_REVISION"];
 
@@ -153,7 +153,6 @@ export default function QuoteEditor(props: EditorProps) {
     title: quote.title,
     issue_date: quote.issue_date,
     valid_until: quote.valid_until || "",
-    execution_duration: quote.execution_duration,
     payment_terms: quote.payment_terms,
     intro_text: quote.intro_text,
     outro_text: quote.outro_text,
@@ -592,29 +591,19 @@ export default function QuoteEditor(props: EditorProps) {
             <Field label="تاريخ انتهاء الصلاحية">
               <input disabled={!editable} type="date" defaultValue={meta.valid_until} onBlur={(e) => persistMeta({ valid_until: e.target.value })} className={`${inputCls} tabular`} />
             </Field>
-            <Field label="مدة التنفيذ">
-              <input disabled={!editable} defaultValue={meta.execution_duration} onBlur={(e) => persistMeta({ execution_duration: e.target.value })} className={inputCls} placeholder="مثال: 45 يوم عمل" />
-            </Field>
-            <Field label="مدة التنفيذ (بالأيام) — لجدول التنفيذ الزمني الداخلي فقط">
+            <Field label="مدة التنفيذ (بالأيام)">
               <input
+                disabled={!editable}
                 type="number"
                 step="1"
-                min="0"
+                min="1"
                 defaultValue={meta.execution_duration_days || ""}
-                onBlur={(e) => {
-                  const days = Math.max(0, Math.round(Number(e.target.value) || 0));
-                  setMeta((m) => ({ ...m, execution_duration_days: days }));
-                  startTransition(() => {
-                    updateExecutionDurationDaysAction(quote.id, days).catch((err: unknown) =>
-                      alert(err instanceof Error ? err.message : "حدث خطأ")
-                    );
-                  });
-                }}
+                onBlur={(e) => persistMeta({ execution_duration_days: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
                 className={`${inputCls} tabular`}
-                placeholder="مثال: 45 — لحساب جدول التنفيذ الزمني"
+                placeholder="مثال: 45"
               />
               <div className="text-[10.5px] text-[var(--foreground-muted)] mt-1">
-                حقل مستقل عن “مدة التنفيذ” أعلاه، ويبقى قابلاً للتعديل دائماً مهما كانت حالة العرض (حتى بعد الاعتماد) — لأنه لا يؤثر على العقد ولا يظهر للعميل، بل يُستخدم فقط لتحديث تبويب “جدول التنفيذ الزمني” فور تغييره.
+                الحقل الوحيد لمدة التنفيذ: يظهر في عرض السعر والعقد، وهو نفسه ما يُبنى عليه تبويب “جدول التنفيذ الزمني” تلقائياً.
               </div>
             </Field>
             <Field label="المساحة الكلية للمشروع (م²)">
@@ -1281,7 +1270,7 @@ function DocumentPreview({
         <div className="grid sm:grid-cols-4 gap-3 text-xs mb-5">
           <div><div className="text-[var(--foreground-muted)] font-bold">العميل</div>{quote.client_name}</div>
           <div><div className="text-[var(--foreground-muted)] font-bold">المشروع</div>{quote.project_name}</div>
-          <div><div className="text-[var(--foreground-muted)] font-bold">مدة التنفيذ</div>{quote.execution_duration || "—"}</div>
+          <div><div className="text-[var(--foreground-muted)] font-bold">مدة التنفيذ</div>{quote.execution_duration_days ? formatExecutionDuration(quote.execution_duration_days) : "—"}</div>
           <div><div className="text-[var(--foreground-muted)] font-bold">صالح حتى</div>{quote.valid_until || "—"}</div>
         </div>
 

@@ -152,14 +152,20 @@ export default function NewQuoteForm({
       </div>
 
       <div className="border-t border-[var(--border)] pt-4">
-        <label className="block text-xs font-bold mb-1.5 text-[var(--foreground-muted)]">مدة التنفيذ المتوقعة *</label>
+        <label className="block text-xs font-bold mb-1.5 text-[var(--foreground-muted)]">مدة التنفيذ المتوقعة (بالأيام) *</label>
         <input
-          name="execution_duration"
+          name="execution_duration_days"
+          type="number"
+          step="1"
+          min="1"
           required
-          defaultValue={v.execution_duration}
-          placeholder="مثال: 45 يوم عمل"
+          defaultValue={v.execution_duration_days}
+          placeholder="مثال: 45"
           className={FIELD_CLS}
         />
+        <div className="text-[10.5px] text-[var(--foreground-muted)] mt-1">
+          هذا الرقم هو ما يظهر في عرض السعر والعقد، وهو نفسه ما يُبنى عليه جدول التنفيذ الزمني تلقائياً.
+        </div>
       </div>
 
       {state.error && (
