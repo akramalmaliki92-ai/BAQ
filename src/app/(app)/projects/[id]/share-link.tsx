@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 // زر نسخ رابط الزبون (الرابط العام لنسخة العرض من النموذج)
-export default function ShareLink({ path }: { path: string }) {
+export default function ShareLink({ path, label = "نسخ رابط الزبون" }: { path: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -20,7 +20,7 @@ export default function ShareLink({ path }: { path: string }) {
       }}
       className="rounded-xl border border-[var(--border)] font-bold text-sm px-4 py-2.5 hover:bg-[var(--surface-muted)]"
     >
-      {copied ? "نُسخ رابط الزبون ✓" : "نسخ رابط الزبون"}
+      {copied ? "نُسخ الرابط ✓" : label}
     </button>
   );
 }

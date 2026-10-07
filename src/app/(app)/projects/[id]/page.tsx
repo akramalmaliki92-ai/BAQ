@@ -7,6 +7,9 @@ import { getProjectModel, listVersions, getStages } from "@/lib/repo/models";
 import { STAGES } from "@/lib/model/stages";
 import { toggleStageAction, restoreVersionAction } from "../model-actions";
 import ShareLink from "./share-link";
+import { listProjectDesignRequests } from "@/lib/repo/designRequests";
+import { createProjectDesignLinkAction } from "../design-actions";
+import RequestView from "../../design-requests/request-view";
 
 const STATUS_LABEL: Record<string, string> = { ACTIVE: "نشط", ON_HOLD: "متوقف مؤقتاً", CLOSED: "مغلق" };
 
@@ -25,6 +28,9 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const stages = await getStages(id);
   const doneCount = STAGES.filter((s) => stages[String(s.no)]?.done).length;
   const canRestore = user.role === "ADMIN" || user.role === "MANAGER";
+  const designRequests = await listProjectDesignRequests(id);
+  const submittedDesign = designRequests.find((r) => r.status === "SUBMITTED");
+  const draftDesign = designRequests.find((r) => r.status === "DRAFT");
 
   return (
     <div className="flex flex-col gap-5">
@@ -85,6 +91,40 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
       )}
+
+      <div className="bg-white rounded-2xl border border-[var(--border)] p-4 flex flex-col gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="text-xs font-bold text-[var(--foreground-muted)]">استبيان التصميم</div>
+          <div className="flex flex-wrap gap-2">
+            {submittedDesign && (
+              <Link href={`/design-requests/${submittedDesign.id}`} className="rounded-xl border border-[var(--border)] font-bold text-sm px-4 py-2.5 hover:bg-[var(--surface-muted)]">
+                تفاصيل الطلب
+              </Link>
+            )}
+            {draftDesign ? (
+              <>
+                <a href={`/design/${draftDesign.token}`} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-[var(--border)] font-bold text-sm px-4 py-2.5 hover:bg-[var(--surface-muted)]">
+                  ما يراه الزبون ↗
+                </a>
+                <ShareLink path={`/design/${draftDesign.token}`} label="نسخ رابط الاستبيان" />
+              </>
+            ) : (
+              <form action={createProjectDesignLinkAction.bind(null, id)}>
+                <button type="submit" className="rounded-xl text-white font-bold text-sm px-4 py-2.5" style={{ background: "var(--brand-dark)" }}>
+                  {submittedDesign ? "رابط استبيان جديد" : "إنشاء رابط استبيان للزبون"}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+        {submittedDesign ? (
+          <RequestView r={submittedDesign} />
+        ) : (
+          <div className="text-sm text-[var(--foreground-muted)]">
+            {draftDesign ? "أُنشئ الرابط ولم يُكمل الزبون الاستبيان بعد. أرسل له الرابط عبر واتساب." : "أنشئ رابطاً خاصاً بهذا المشروع وأرسله للزبون ليجيب عن أسئلة التصميم ويرفع الصور."}
+          </div>
+        )}
+      </div>
 
       <div className="bg-white rounded-2xl border border-[var(--border)] p-4">
         <div className="flex items-center justify-between mb-3">

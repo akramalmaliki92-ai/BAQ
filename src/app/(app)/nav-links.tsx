@@ -13,6 +13,7 @@ interface Item {
 const ITEMS: Item[] = [
   { href: "/dashboard", label: "لوحة التحكم" },
   // بترتيب خطوات العمل: المخطط ← الزبون ← المشروع ← الفقرات ← العرض ← العقد
+  { href: "/design-requests", label: "طلبات التصميم" },
   { href: "/plans", label: "١ · مكتبة المخططات" },
   { href: "/clients", label: "٢ · العملاء" },
   { href: "/projects", label: "٣ · المشاريع" },

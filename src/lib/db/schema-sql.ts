@@ -248,4 +248,36 @@ ALTER TABLE plan_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_models ENABLE ROW LEVEL SECURITY;
 ALTER TABLE model_versions ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_model_versions_model ON model_versions(model_id);
+-- ===== استبيان التصميم المعماري: طلبات الزبائن (رابط عام للمجيب الآلي، أو رابط خاص بمشروع) =====
+-- الصور تُخزَّن في Google Drive عبر ورك فلو n8n؛ هنا تُحفظ روابطها وصورة مصغّرة صغيرة فقط.
+CREATE TABLE IF NOT EXISTS design_requests (
+  id TEXT PRIMARY KEY,
+  token TEXT NOT NULL UNIQUE,
+  source TEXT NOT NULL DEFAULT 'PUBLIC' CHECK (source IN ('PUBLIC','PROJECT')),
+  status TEXT NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT','SUBMITTED')),
+  project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+  client_id TEXT REFERENCES clients(id) ON DELETE SET NULL,
+  name TEXT NOT NULL DEFAULT '',
+  phone TEXT NOT NULL DEFAULT '',
+  governorate TEXT NOT NULL DEFAULT '',
+  answers_json TEXT NOT NULL DEFAULT '{}',
+  files_json TEXT NOT NULL DEFAULT '[]',
+  drive_folder_id TEXT NOT NULL DEFAULT '',
+  notify_status TEXT NOT NULL DEFAULT '',
+  ip TEXT NOT NULL DEFAULT '',
+  created_by TEXT REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT to_char(timezone('utc', now()), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+  updated_at TEXT NOT NULL DEFAULT to_char(timezone('utc', now()), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+  submitted_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_design_requests_project ON design_requests(project_id);
+CREATE INDEX IF NOT EXISTS idx_design_requests_ip ON design_requests(ip, created_at);
+ALTER TABLE design_requests ENABLE ROW LEVEL SECURITY;
+
+-- إعدادات تكامل سرية (مثل رابط ومفتاح ورك فلو n8n) — تُضاف قيمها مباشرة في قاعدة البيانات، لا في المستودع العام
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT ''
+);
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 `;
