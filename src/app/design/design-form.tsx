@@ -30,11 +30,11 @@ type Pending = { id: string; kind: FileKind; preview: string; error?: string };
 export default function DesignForm({ token: initialToken, greetName, initialAnswers, initialFiles, phone }: Props) {
   const isPublic = !initialToken;
   const [token, setToken] = useState(initialToken || "");
-  const [step, setStep] = useState(0); // 0 ترحيب، 1..6 الأسئلة، 7 الصور، 8 مراجعة، 9 تم
+  const [step, setStep] = useState(0); // 0 ترحيب، ثم خطوات الأسئلة، ثم الصور، ثم المراجعة، ثم تم
   const [answers, setAnswers] = useState<Answers>(initialAnswers || {});
   const [files, setFiles] = useState<StoredFile[]>(initialFiles || []);
   const [pending, setPending] = useState<Pending[]>([]);
-  const [who, setWho] = useState({ name: "", phone: "", governorate: "", website: "" });
+  const [who, setWho] = useState({ name: "", phone: "", governorate: GOVERNORATES[0], website: "" });
   const [ack, setAck] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -43,7 +43,8 @@ export default function DesignForm({ token: initialToken, greetName, initialAnsw
   const queue = useRef<Promise<void>>(Promise.resolve());
   const topRef = useRef<HTMLDivElement>(null);
 
-  const totalSteps = STEPS.length + 1; // ستة أسئلة + الصور
+  const totalSteps = STEPS.length + 1; // خطوات الأسئلة + الصور
+  const PHOTOS = STEPS.length + 1, REVIEW = STEPS.length + 2, DONE = STEPS.length + 3;
 
   const go = (n: number) => {
     setErr("");
@@ -86,7 +87,6 @@ export default function DesignForm({ token: initialToken, greetName, initialAnsw
     if (!isPublic) return go(1);
     if (who.name.trim().length < 3) return setErr("اكتب الاسم الكامل.");
     if (!normalizePhone(who.phone)) return setErr("رقم الهاتف غير صحيح. اكتبه بصيغة 07XXXXXXXXX");
-    if (!who.governorate) return setErr("اختر المحافظة.");
     if (token) return go(1);
     setBusy(true);
     try {
@@ -181,7 +181,7 @@ export default function DesignForm({ token: initialToken, greetName, initialAnsw
         if (data.missing?.length) return setErr(`بقيت أسئلة بلا إجابة: ${data.missing.join("، ")}`);
         return setErr(data.error || "تعذّر الإرسال. حاول مرة أخرى.");
       }
-      go(9);
+      go(DONE);
     } catch {
       setErr("تعذّر الاتصال. تحقق من الإنترنت وحاول مرة أخرى.");
     } finally {
@@ -207,7 +207,7 @@ export default function DesignForm({ token: initialToken, greetName, initialAnsw
 
   const header = (title: string, sub?: string) => (
     <div style={{ background: C.green, color: "#fff", padding: "14px 16px" }}>
-      {step > 0 && step < 9 ? (
+      {step > 0 && step < DONE ? (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
             <span>{step <= totalSteps ? `${step} من ${totalSteps}` : "قبل الإرسال"}</span>
@@ -290,7 +290,7 @@ export default function DesignForm({ token: initialToken, greetName, initialAnsw
 
   const nav = (label = "التالي", onClick = next, bg?: string) => (
     <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-      {step > 1 && step < 9 && (
+      {step > 1 && step < DONE && (
         <button type="button" onClick={() => go(step - 1)} style={{ ...btn("#fff"), color: C.brown, border: `1.5px solid ${C.line}`, width: "35%", opacity: 1 }}>السابق</button>
       )}
       <button type="button" onClick={onClick} disabled={busy} style={btn(bg)}>{busy ? "لحظة…" : label}</button>
@@ -314,7 +314,7 @@ export default function DesignForm({ token: initialToken, greetName, initialAnsw
               <li>الواجهة</li>
               <li>المخططات النهائية</li>
             </ol>
-            <span style={{ color: C.muted, fontSize: 12 }}>لكل مرحلة جولتا تعديل، والتعديل بعد الموافقة على المرحلة يُحتسب.</span>
+            <div style={{ marginTop: 8, background: C.orange, color: "#fff", borderRadius: 10, padding: "8px 10px", fontWeight: 700, textAlign: "center" }}>لا تفوّت عرض التصميم المجاني</div>
           </div>
           {isPublic && (
             <>
@@ -322,10 +322,7 @@ export default function DesignForm({ token: initialToken, greetName, initialAnsw
               <div style={{ display: "grid", gap: 8, marginTop: 6 }}>
                 <input style={input} placeholder="الاسم الكامل" value={who.name} onChange={(e) => setWho({ ...who, name: e.target.value })} autoComplete="name" />
                 <input style={{ ...input, direction: "ltr", textAlign: "right" }} placeholder="07XXXXXXXXX" inputMode="tel" value={who.phone} onChange={(e) => setWho({ ...who, phone: e.target.value })} autoComplete="tel" />
-                <select style={input} value={who.governorate} onChange={(e) => setWho({ ...who, governorate: e.target.value })}>
-                  <option value="">المحافظة</option>
-                  {GOVERNORATES.map((g) => <option key={g} value={g}>{g}</option>)}
-                </select>
+                <div style={{ fontSize: 12, color: C.muted }}>نعمل داخل محافظة البصرة.</div>
                 <div aria-hidden="true" style={{ height: 0, overflow: "hidden" }}>
                   <input tabIndex={-1} autoComplete="off" value={who.website} onChange={(e) => setWho({ ...who, website: e.target.value })} name="website" />
                 </div>
@@ -354,7 +351,7 @@ export default function DesignForm({ token: initialToken, greetName, initialAnsw
         </div>
       </>
     );
-  } else if (step === 7) {
+  } else if (step === PHOTOS) {
     body = (
       <>
         {header("الصور والملاحظات")}
@@ -399,11 +396,11 @@ export default function DesignForm({ token: initialToken, greetName, initialAnsw
           <div style={{ fontWeight: 700, fontSize: 15, margin: "16px 0 8px" }}>طلب خاص تريد أن يعرفه المصمم</div>
           <textarea style={{ ...input, minHeight: 80, resize: "vertical" }} value={answers.notes || ""} onChange={(e) => setAnswer("notes", e.target.value.slice(0, 1500))} placeholder="اكتب ملاحظتك هنا" />
           {errorBox}
-          {nav("مراجعة الطلب", () => go(8), C.orange)}
+          {nav("مراجعة الطلب", () => go(REVIEW), C.orange)}
         </div>
       </>
     );
-  } else if (step === 8) {
+  } else if (step === REVIEW) {
     body = (
       <>
         {header("المراجعة")}
@@ -447,7 +444,7 @@ export default function DesignForm({ token: initialToken, greetName, initialAnsw
   return (
     <div ref={topRef} style={{ maxWidth: 480, margin: "0 auto", padding: "12px 12px 40px" }}>
       <div style={{ background: C.beige, borderRadius: 20, overflow: "hidden", color: C.brown, fontFamily: "Almarai, Cairo, sans-serif", boxShadow: "0 1px 0 rgba(0,0,0,.04)" }}>{body}</div>
-      {token && step > 0 && step < 9 && (
+      {token && step > 0 && step < DONE && (
         <div style={{ textAlign: "center", fontSize: 12, color: C.muted, marginTop: 8 }}>
           {saved === "saving" ? "يُحفظ…" : saved === "error" ? "تعذّر الحفظ، تحقق من الإنترنت" : "يُحفظ تقدمك تلقائياً، ويمكنك الإكمال لاحقاً من الرابط نفسه."}
         </div>
