@@ -270,13 +270,13 @@ function buildLabels(){
   if(S.structView){ structLabels().forEach(([t,p])=>{ const d=document.createElement("div"); d.className="lb"; d.textContent=t; box.appendChild(d); labelEls.push([d,p]); }); return; }
   if(S.showZones!==false) (F().zones||[]).forEach(z=>{ const r=z.r.reduce((a,b)=>(b[2]-b[0])*(b[3]-b[1])>(a[2]-a[0])*(a[3]-a[1])?b:a); const d=document.createElement("div"); d.className="lb zlb"; d.style.background=z.c; d.textContent=z.n; box.appendChild(d); labelEls.push([d,P((r[0]+r[2])/2,(r[1]+r[3])/2,e+(S.cut?2.6:3.4))]); });
   F().labels.forEach(([t,x,y])=>{ if(t==="نقطة تفتيش" && SIM.on && SIM.sc==="B" && S.cur===0) return; const d=document.createElement("div"); d.className="lb"; d.textContent=t; box.appendChild(d); labelEls.push([d,P(x,y,e+(S.cut?1.4:.6))]); });
-}
 function setView(v){
   const cx=S.site.w/2, cy=S.site.d/2, e=elev(S.cur), tz=e/2+1;
+  const k = Math.max(S.site.w, S.site.d, 10) / 30;
   controls.target.copy(P(cx,cy,tz));
-  if(v==="top") camera.position.copy(P(cx,cy-0.01,e+58));
-  else if(v==="front") camera.position.copy(P(cx,-30-e*.6,tz+4));
-  else camera.position.copy(P(cx+28+e*.5,-18-e*.5,tz+30+e*.4));
+  if(v==="top") camera.position.copy(P(cx,cy-0.01,e+58*k));
+  else if(v==="front") camera.position.copy(P(cx,-30*k-e*.6,tz+4*k));
+  else camera.position.copy(P(cx+28*k+e*.5,-18*k-e*.5,tz+30*k+e*.4));
   controls.update();
   document.querySelectorAll("#views button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.v===v));
 }
