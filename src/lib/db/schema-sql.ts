@@ -159,7 +159,11 @@ CREATE TABLE IF NOT EXISTS quote_items (
   internal_note TEXT DEFAULT '',
   client_note TEXT DEFAULT '',
   hidden_from_client INTEGER NOT NULL DEFAULT 0,
-  sort_order INTEGER NOT NULL DEFAULT 0
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  -- مدة تنفيذ تقديرية للفقرة بالأيام، يُدخلها المهندس المشرف على التسعير يدوياً. إعلامية بحتة:
+  -- لا تدخل في حساب "جدول التنفيذ الزمني" التلقائي (المبني فقط على execution_duration_days
+  -- وتوزيع القيمة المالية للأقسام) — تُجمع وتُعرض بجانبه فقط لإعطاء تصوّر إضافي.
+  duration_days REAL NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS quote_payments (
@@ -197,6 +201,9 @@ CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
 CREATE INDEX IF NOT EXISTS idx_projects_client ON projects(client_id);
 CREATE INDEX IF NOT EXISTS idx_audit_quote ON quote_audit_log(quote_id);
 CREATE INDEX IF NOT EXISTS idx_overhead_quote ON quote_overhead_costs(quote_id);
+
+-- حقل مدة الفقرة التقديرية (أيام) — يُضاف بأمان لقواعد البيانات المنشورة مسبقاً قبل هذا الحقل.
+ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS duration_days REAL NOT NULL DEFAULT 0;
 
 -- روابط المشروع: النموذج ثلاثي الأبعاد (للفريق وللزبون) وملف المشروع — تُضاف بأمان إن لم تكن موجودة
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS model_url TEXT DEFAULT '';

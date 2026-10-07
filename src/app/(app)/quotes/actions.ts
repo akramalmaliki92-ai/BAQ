@@ -19,6 +19,9 @@ import {
   deleteItem,
   copyItem,
   reorderItems,
+  moveItemToSection,
+  getItem,
+  attachLibraryItemId,
   setPayments,
   setOverheadCosts,
   sendForReview,
@@ -34,6 +37,7 @@ import {
   type CustomItemInput,
   type ItemUpdateInput,
 } from "@/lib/repo/quotes";
+import { createLibraryItem } from "@/lib/repo/library";
 
 async function assertEditable(quoteId: string) {
   const user = await requireUser();
@@ -129,6 +133,35 @@ export async function reorderItemsAction(quoteId: string, sectionId: string, ord
   revalidatePath(`/quotes/${quoteId}`);
 }
 
+export async function moveItemToSectionAction(quoteId: string, itemId: string, targetSectionId: string): Promise<void> {
+  await assertEditable(quoteId);
+  await moveItemToSection(itemId, targetSectionId);
+  revalidatePath(`/quotes/${quoteId}`);
+}
+
+// حفظ فقرة مُدخلة يدوياً داخل عرض سعر إلى مكتبة الفقرات المشتركة، لإعادة استخدامها لاحقاً في عروض
+// أخرى دون كتابتها من جديد. متاحة لأي مستخدم يحرر العرض (وليس فقط ADMIN/MANAGER كإدارة المكتبة
+// الكاملة) لأن معدّ التندر هو غالباً من يلاحظ أن فقرة تستحق الإضافة أثناء إعداده العرض، والإضافة
+// هنا لا تُعدّل أو تحذف أي فقرة موجودة في المكتبة، فقط تُنشئ فقرة جديدة.
+export async function saveItemToLibraryAction(quoteId: string, itemId: string): Promise<string> {
+  await assertEditable(quoteId);
+  const item = await getItem(itemId);
+  if (!item) throw new ApiError(404, "الفقرة غير موجودة");
+  if (item.library_item_id) throw new ApiError(400, "هذه الفقرة مرتبطة بمكتبة الفقرات بالفعل");
+  const lib = await createLibraryItem({
+    code: item.code || undefined,
+    name: item.name || "فقرة بلا اسم",
+    description: item.description,
+    unit: item.unit,
+    default_unit_cost: item.unit_cost,
+    default_margin_pct: item.margin_pct,
+  });
+  await attachLibraryItemId(itemId, lib.id);
+  revalidatePath(`/quotes/${quoteId}`);
+  revalidatePath("/library");
+  return lib.id;
+}
+
 export async function setPaymentsAction(
   quoteId: string,
   payments: { label: string; pct: number }[]
@@ -148,7 +181,7 @@ export async function setOverheadCostsAction(
 }
 
 export async function sendForReviewAction(quoteId: string): Promise<void> {
-  const { user, quote } = await assertEditable(quoteId);
+  const { user } = await assertEditable(quoteId);
   const sections = await getSectionsWithItems(quoteId);
   const hasItems = sections.some((s) => s.items.length > 0);
   if (!hasItems) throw new ApiError(400, "لا يمكن إرسال عرض سعر بلا فقرات");

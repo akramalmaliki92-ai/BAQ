@@ -11,12 +11,15 @@ import {
   addSectionAction,
   renameSectionAction,
   deleteSectionAction,
+  reorderSectionsAction,
   addLibraryItemAction,
   addCustomItemAction,
   updateItemAction,
   deleteItemAction,
   copyItemAction,
   reorderItemsAction,
+  moveItemToSectionAction,
+  saveItemToLibraryAction,
   setPaymentsAction,
   setOverheadCostsAction,
   sendForReviewAction,
@@ -263,8 +266,8 @@ export default function QuoteEditor(props: EditorProps) {
       try {
         const realId = await addSectionAction(quote.id, name || "قسم جديد");
         setSections((s) => s.map((sec) => (sec.id === tempId ? { ...sec, id: realId } : sec)));
-      } catch (e: any) {
-        alert(e.message);
+      } catch (e) {
+        alert(e instanceof Error ? e.message : String(e));
       }
     });
   }
@@ -308,6 +311,7 @@ export default function QuoteEditor(props: EditorProps) {
                   internal_note: "",
                   client_note: "",
                   hidden_from_client: 0,
+                  duration_days: 0,
                   sort_order: s.items.length,
                 },
               ],
@@ -319,8 +323,8 @@ export default function QuoteEditor(props: EditorProps) {
       try {
         const realId = await addCustomItemAction(quote.id, sectionId, { name: "", margin_pct: company.default_margin_pct });
         setSections((secs) => secs.map((s) => (s.id === sectionId ? { ...s, items: s.items.map((it) => (it.id === tempId ? { ...it, id: realId } : it)) } : s)));
-      } catch (e: any) {
-        alert(e.message);
+      } catch (e) {
+        alert(e instanceof Error ? e.message : String(e));
       }
     });
   }
@@ -351,6 +355,7 @@ export default function QuoteEditor(props: EditorProps) {
                   internal_note: "",
                   client_note: "",
                   hidden_from_client: 0,
+                  duration_days: 0,
                   sort_order: s.items.length,
                 },
               ],
@@ -363,8 +368,8 @@ export default function QuoteEditor(props: EditorProps) {
       try {
         const realId = await addLibraryItemAction(quote.id, sectionId, libId);
         setSections((secs) => secs.map((s) => (s.id === sectionId ? { ...s, items: s.items.map((it) => (it.id === tempId ? { ...it, id: realId } : it)) } : s)));
-      } catch (e: any) {
-        alert(e.message);
+      } catch (e) {
+        alert(e instanceof Error ? e.message : String(e));
       }
     });
   }
@@ -412,6 +417,51 @@ export default function QuoteEditor(props: EditorProps) {
         return { ...s, items };
       })
     );
+  }
+
+  // تصعيد/تنزيل القسم نفسه بكامل فقراته ضمن ترتيب الأقسام.
+  function moveSection(sectionId: string, dir: -1 | 1) {
+    setSections((secs) => {
+      const idx = secs.findIndex((s) => s.id === sectionId);
+      const swapWith = idx + dir;
+      if (idx < 0 || swapWith < 0 || swapWith >= secs.length) return secs;
+      const next = [...secs];
+      [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
+      startTransition(() => {
+        reorderSectionsAction(quote.id, next.map((s) => s.id)).catch((e) => alert(e.message));
+      });
+      return next;
+    });
+  }
+
+  // نقل فقرة إلى قسم آخر بالكامل (وليس مجرد تصعيد/تنزيل ضمن نفس القسم).
+  function moveItemToSection(sectionId: string, itemId: string, targetSectionId: string) {
+    if (targetSectionId === sectionId) return;
+    setSections((secs) => {
+      const from = secs.find((s) => s.id === sectionId);
+      const item = from?.items.find((i) => i.id === itemId);
+      if (!item) return secs;
+      return secs.map((s) => {
+        if (s.id === sectionId) return { ...s, items: s.items.filter((i) => i.id !== itemId) };
+        if (s.id === targetSectionId) return { ...s, items: [...s.items, { ...item, section_id: targetSectionId }] };
+        return s;
+      });
+    });
+    startTransition(() => {
+      moveItemToSectionAction(quote.id, itemId, targetSectionId).catch((e) => alert(e.message));
+    });
+  }
+
+  // حفظ فقرة مخصّصة في مكتبة الفقرات المشتركة بنقرة واحدة، لإعادة استخدامها في عروض أخرى لاحقاً.
+  function saveToLibrary(sectionId: string, itemId: string) {
+    startTransition(async () => {
+      try {
+        const libId = await saveItemToLibraryAction(quote.id, itemId);
+        patchItem(sectionId, itemId, { library_item_id: libId });
+      } catch (e) {
+        alert(e instanceof Error ? e.message : String(e));
+      }
+    });
   }
 
   function updatePayLabel(idx: number, label: string) {
@@ -665,6 +715,20 @@ export default function QuoteEditor(props: EditorProps) {
                       className="flex-1 bg-transparent font-bold text-sm px-2 py-1 rounded focus:bg-white focus:ring-2 outline-none"
                     />
                     <div className="text-xs text-[var(--foreground-muted)] tabular whitespace-nowrap">مجموع القسم: <b className="text-[var(--foreground)]">{fmt(st.sumSaleBeforeDiscount)}</b></div>
+                    {(() => {
+                      const sectionDays = s.items.reduce((sum, it) => sum + (Number(it.duration_days) || 0), 0);
+                      return sectionDays > 0 ? (
+                        <div className="text-xs text-[var(--foreground-muted)] tabular whitespace-nowrap" title="مجموع مدد الفقرات التقديرية — إعلامي، لا يدخل في جدول التنفيذ الزمني">
+                          مدة الفقرات: <b className="text-[var(--foreground)]">{sectionDays}</b> يوم
+                        </div>
+                      ) : null;
+                    })()}
+                    {editable && (
+                      <div className="flex items-center gap-0.5">
+                        <button onClick={() => moveSection(s.id, -1)} disabled={si === 0} className="text-[11px] px-1 disabled:opacity-30" title="تصعيد القسم">▲</button>
+                        <button onClick={() => moveSection(s.id, 1)} disabled={si === sections.length - 1} className="text-[11px] px-1 disabled:opacity-30" title="تنزيل القسم">▼</button>
+                      </div>
+                    )}
                     {editable && <button onClick={() => removeSection(s.id)} className="text-xs text-red-600 font-bold px-2">حذف القسم</button>}
                   </div>
 
@@ -677,13 +741,14 @@ export default function QuoteEditor(props: EditorProps) {
                           <th className="px-2 py-2 text-right font-bold min-w-[220px]">التفاصيل</th>
                           <th className="px-2 py-2 text-right font-bold w-24">الوحدة</th>
                           <th className="px-2 py-2 text-right font-bold w-20">الكمية</th>
+                          <th className="px-2 py-2 text-right font-bold w-20" title="مدة تنفيذ تقديرية للفقرة — إعلامية، لا تدخل في حساب جدول التنفيذ الزمني">المدة (يوم)</th>
                           <th className="px-2 py-2 text-right font-bold w-24 bg-[var(--brand-light)]">الكلفة *</th>
                           <th className="px-2 py-2 text-right font-bold w-20 bg-[var(--brand-light)]">الربح % *</th>
                           <th className="px-2 py-2 text-right font-bold w-24">سعر الوحدة</th>
                           <th className="px-2 py-2 text-right font-bold w-28">المجموع</th>
                           <th className="px-2 py-2 text-right font-bold w-24 bg-[var(--brand-light)]" title={meta.distribute_overhead ? "شامل حصة الفقرة من مصاريف المشروع بعد توزيعها على الكلفة" : undefined}>الربح *</th>
                           <th className="px-2 py-2 text-right font-bold w-10">إخفاء</th>
-                          <th className="px-2 py-2 w-24"></th>
+                          <th className="px-2 py-2 w-32"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -740,6 +805,17 @@ export default function QuoteEditor(props: EditorProps) {
                                   onChange={(e) => patchItem(s.id, it.id, { qty: Number(e.target.value) || 0 })}
                                   onBlur={(e) => commitItem(it.id, { qty: Number(e.target.value) || 0 })}
                                   className={`${rowInputCls} tabular`}
+                                />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <input
+                                  disabled={!editable}
+                                  type="number" step="any" min="0"
+                                  defaultValue={it.duration_days || ""}
+                                  onChange={(e) => patchItem(s.id, it.id, { duration_days: Number(e.target.value) || 0 })}
+                                  onBlur={(e) => commitItem(it.id, { duration_days: Number(e.target.value) || 0 })}
+                                  className={`${rowInputCls} tabular`}
+                                  title="مدة تنفيذ تقديرية لهذه الفقرة بالأيام (إعلامية فقط)"
                                 />
                               </td>
                               <td className="px-2 py-1.5 bg-[var(--brand-light)]/40">
@@ -802,10 +878,26 @@ export default function QuoteEditor(props: EditorProps) {
                               </td>
                               <td className="px-2 py-1.5 whitespace-nowrap">
                                 {editable && (
-                                  <div className="flex gap-1 items-center justify-end">
-                                    <button onClick={() => moveItem(s.id, it.id, -1)} className="text-[11px] px-1" title="نقل لأعلى">▲</button>
-                                    <button onClick={() => moveItem(s.id, it.id, 1)} className="text-[11px] px-1" title="نقل لأسفل">▼</button>
+                                  <div className="flex gap-1 items-center justify-end flex-wrap">
+                                    <button onClick={() => moveItem(s.id, it.id, -1)} className="text-[11px] px-1" title="نقل لأعلى ضمن القسم">▲</button>
+                                    <button onClick={() => moveItem(s.id, it.id, 1)} className="text-[11px] px-1" title="نقل لأسفل ضمن القسم">▼</button>
+                                    {sections.length > 1 && (
+                                      <select
+                                        value=""
+                                        onChange={(e) => { if (e.target.value) moveItemToSection(s.id, it.id, e.target.value); }}
+                                        className="text-[10px] rounded border border-[var(--border)] bg-transparent max-w-[70px]"
+                                        title="نقل الفقرة إلى قسم آخر"
+                                      >
+                                        <option value="">نقل لقسم↦</option>
+                                        {sections.filter((sec) => sec.id !== s.id).map((sec) => (
+                                          <option key={sec.id} value={sec.id}>{sec.name || "بلا اسم"}</option>
+                                        ))}
+                                      </select>
+                                    )}
                                     <button onClick={() => duplicateItem(it.id)} className="text-[11px] px-1" title="نسخ">⧉</button>
+                                    {!it.library_item_id && (
+                                      <button onClick={() => saveToLibrary(s.id, it.id)} className="text-[11px] px-1" title="حفظ هذه الفقرة في مكتبة الفقرات لإعادة استخدامها لاحقاً">📚</button>
+                                    )}
                                     <button onClick={() => removeItem(s.id, it.id)} className="text-[11px] px-1 text-red-600" title="حذف">✕</button>
                                   </div>
                                 )}
@@ -1064,7 +1156,7 @@ export default function QuoteEditor(props: EditorProps) {
         />
       )}
 
-      {tab === "schedule" && <ScheduleTab schedule={schedule} currency={quote.currency} />}
+      {tab === "schedule" && <ScheduleTab schedule={schedule} currency={quote.currency} sections={sections} />}
 
       {tab === "log" && <AuditTab auditLog={props.auditLog} />}
     </div>
@@ -1369,17 +1461,39 @@ function DocumentPreview({
   );
 }
 
-function ScheduleTab({ schedule, currency }: { schedule: ExecutionSchedule | null; currency: string }) {
+function ScheduleTab({
+  schedule,
+  currency,
+  sections,
+}: {
+  schedule: ExecutionSchedule | null;
+  currency: string;
+  sections: EditorProps["sections"];
+}) {
+  const itemsDurationTotal = sections.reduce(
+    (sum, s) => sum + s.items.reduce((ss, it) => ss + (Number(it.duration_days) || 0), 0),
+    0
+  );
+  const itemsDurationNote = itemsDurationTotal > 0 && (
+    <div className="rounded-lg px-3.5 py-2.5 bg-sky-50 text-sky-800 border border-sky-200 text-xs font-bold">
+      مجموع المدد التقديرية المُدخلة يدوياً لفقرات العرض (تبويب “تحرير”): {itemsDurationTotal} يوماً — رقم إعلامي من
+      المهندس المشرف على التسعير، منفصل تماماً عن الحساب التلقائي أدناه ولا يدخل في بنائه.
+    </div>
+  );
   if (!schedule) {
     return (
-      <div className="bg-white rounded-2xl border border-[var(--border)] p-6 text-sm text-[var(--foreground-muted)]">
-        لبناء جدول التنفيذ الزمني، يجب إدخال “مدة التنفيذ (بالأيام)” في تبويب “تحرير” أعلاه، مع وجود فقرات
-        بقيمة مالية في العرض. هذا الجدول داخلي فقط ولا يظهر للعميل حالياً.
+      <div className="flex flex-col gap-4">
+        {itemsDurationNote}
+        <div className="bg-white rounded-2xl border border-[var(--border)] p-6 text-sm text-[var(--foreground-muted)]">
+          لبناء جدول التنفيذ الزمني، يجب إدخال “مدة التنفيذ (بالأيام)” في تبويب “تحرير” أعلاه، مع وجود فقرات
+          بقيمة مالية في العرض. هذا الجدول داخلي فقط ولا يظهر للعميل حالياً.
+        </div>
       </div>
     );
   }
   return (
     <div className="flex flex-col gap-5">
+      {itemsDurationNote}
       <div className="rounded-lg px-3.5 py-2.5 bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold">
         هذا الجدول داخلي فقط (لا يظهر للعميل) — حساب تقديري تلقائي: مدة كل قسم بالتناسب مع قيمته المالية من
         إجمالي العرض، بتنفيذ متسلسل (قسم بعد قسم) على مدى {schedule.totalDays} يوماً إجمالاً.

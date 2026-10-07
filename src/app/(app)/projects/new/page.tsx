@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requirePageUser } from "@/lib/auth/guard";
 import { listClients } from "@/lib/repo/clients";
 import { listUsers } from "@/lib/repo/users";
@@ -14,7 +15,7 @@ export default async function NewProjectPage() {
       <h1 className="text-xl font-extrabold">مشروع جديد</h1>
       {clients.length === 0 ? (
         <div className="text-sm text-[var(--foreground-muted)]">
-          أضف عميلاً أولاً قبل إنشاء مشروع. <a href="/clients/new" className="font-bold" style={{ color: "var(--brand-dark)" }}>إضافة عميل</a>
+          أضف عميلاً أولاً قبل إنشاء مشروع. <Link href="/clients/new" className="font-bold" style={{ color: "var(--brand-dark)" }}>إضافة عميل</Link>
         </div>
       ) : (
         <ProjectForm action={createProjectAction} submitLabel="حفظ المشروع" clients={clients} managers={managers} />

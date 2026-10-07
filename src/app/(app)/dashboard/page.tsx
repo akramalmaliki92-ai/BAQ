@@ -18,10 +18,6 @@ const STATUS_COLOR: Record<string, string> = {
   CANCELLED: "#a3402f",
 };
 
-function fmt(n: number, currency = "IQD") {
-  return Math.round(n).toLocaleString("en-US") + " " + (currency === "IQD" ? "د.ع" : currency);
-}
-
 export default async function DashboardPage() {
   await requirePageUser();
 
@@ -31,10 +27,6 @@ export default async function DashboardPage() {
     )
     .all()) as { status: string; c: number }[];
   const countMap = Object.fromEntries(counts.map((c) => [c.status, c.c]));
-
-  const approvedSum = await db
-    .prepare(`SELECT COALESCE(SUM(1),0) FROM quotes WHERE status='APPROVED'`)
-    .get();
 
   const recentQuotes = (await listQuotes()).slice(0, 8);
 

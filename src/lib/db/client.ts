@@ -9,9 +9,7 @@ import { Pool, type QueryResultRow } from "pg";
 import { SCHEMA_SQL } from "./schema-sql";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __baqPool: Pool | undefined;
-  // eslint-disable-next-line no-var
   var __baqSchemaReady: Promise<void> | undefined;
 }
 

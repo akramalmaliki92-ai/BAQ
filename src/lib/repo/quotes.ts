@@ -72,6 +72,9 @@ export interface QuoteItemRow {
   client_note: string;
   hidden_from_client: number;
   sort_order: number;
+  // مدة تنفيذ تقديرية للفقرة بالأيام (إعلامية، يُدخلها المهندس يدوياً) — لا تدخل في حساب جدول
+  // التنفيذ الزمني التلقائي، راجع التعليق في schema-sql.ts.
+  duration_days: number;
 }
 
 export interface PaymentRow {
@@ -382,6 +385,7 @@ export interface CustomItemInput {
   unit_cost?: number;
   margin_pct?: number;
   code?: string;
+  duration_days?: number;
 }
 
 export async function addItemFromLibrary(sectionId: string, libraryItemId: string, qty = 1): Promise<string> {
@@ -416,8 +420,8 @@ export async function addCustomItem(sectionId: string, input: CustomItemInput): 
     .prepare("SELECT COALESCE(MAX(sort_order), -1) m FROM quote_items WHERE section_id = ?")
     .get(sectionId)) as { m: number };
   await db.prepare(
-    `INSERT INTO quote_items (id, section_id, library_item_id, code, name, description, unit, qty, unit_cost, margin_pct, sort_order)
-     VALUES (?,?,NULL,?,?,?,?,?,?,?,?)`
+    `INSERT INTO quote_items (id, section_id, library_item_id, code, name, description, unit, qty, unit_cost, margin_pct, duration_days, sort_order)
+     VALUES (?,?,NULL,?,?,?,?,?,?,?,?,?)`
   ).run(
     id,
     sectionId,
@@ -428,9 +432,16 @@ export async function addCustomItem(sectionId: string, input: CustomItemInput): 
     input.qty || 0,
     input.unit_cost || 0,
     input.margin_pct ?? 20,
+    input.duration_days || 0,
     maxRow.m + 1
   );
   return id;
+}
+
+export async function getItem(itemId: string): Promise<QuoteItemRow | undefined> {
+  return (await db.prepare("SELECT * FROM quote_items WHERE id = ?").get(itemId)) as unknown as
+    | QuoteItemRow
+    | undefined;
 }
 
 export async function copyItem(itemId: string): Promise<string> {
@@ -441,8 +452,8 @@ export async function copyItem(itemId: string): Promise<string> {
     .prepare("SELECT COALESCE(MAX(sort_order), -1) m FROM quote_items WHERE section_id = ?")
     .get(item.section_id)) as { m: number };
   await db.prepare(
-    `INSERT INTO quote_items (id, section_id, library_item_id, code, name, description, unit, qty, unit_cost, margin_pct, manual_unit_price, internal_note, client_note, hidden_from_client, sort_order)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    `INSERT INTO quote_items (id, section_id, library_item_id, code, name, description, unit, qty, unit_cost, margin_pct, manual_unit_price, internal_note, client_note, hidden_from_client, duration_days, sort_order)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   ).run(
     id,
     item.section_id,
@@ -458,6 +469,7 @@ export async function copyItem(itemId: string): Promise<string> {
     item.internal_note,
     item.client_note,
     item.hidden_from_client,
+    item.duration_days,
     maxRow.m + 1
   );
   return id;
@@ -474,6 +486,7 @@ export interface ItemUpdateInput {
   internal_note?: string;
   client_note?: string;
   hidden_from_client?: boolean;
+  duration_days?: number;
 }
 
 export async function updateItem(itemId: string, input: ItemUpdateInput): Promise<void> {
@@ -493,9 +506,10 @@ export async function updateItem(itemId: string, input: ItemUpdateInput): Promis
     margin_pct: input.margin_pct ?? current.margin_pct,
     internal_note: input.internal_note ?? current.internal_note,
     client_note: input.client_note ?? current.client_note,
+    duration_days: input.duration_days ?? current.duration_days,
   };
   await db.prepare(
-    `UPDATE quote_items SET name=?, description=?, unit=?, qty=?, unit_cost=?, margin_pct=?, manual_unit_price=?, internal_note=?, client_note=?, hidden_from_client=?
+    `UPDATE quote_items SET name=?, description=?, unit=?, qty=?, unit_cost=?, margin_pct=?, manual_unit_price=?, internal_note=?, client_note=?, hidden_from_client=?, duration_days=?
      WHERE id=?`
   ).run(
     merged.name,
@@ -508,12 +522,17 @@ export async function updateItem(itemId: string, input: ItemUpdateInput): Promis
     merged.internal_note,
     merged.client_note,
     hiddenFromClient,
+    Number(merged.duration_days) || 0,
     itemId
   );
 }
 
 export async function deleteItem(itemId: string): Promise<void> {
   await db.prepare("DELETE FROM quote_items WHERE id = ?").run(itemId);
+}
+
+export async function attachLibraryItemId(itemId: string, libraryItemId: string): Promise<void> {
+  await db.prepare("UPDATE quote_items SET library_item_id = ? WHERE id = ?").run(libraryItemId, itemId);
 }
 
 export async function reorderItems(sectionId: string, orderedIds: string[]): Promise<void> {

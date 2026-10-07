@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { requirePageUser } from "@/lib/auth/guard";
 import { roleLabel } from "@/lib/auth/types";
 import { logoutAction } from "./actions";
