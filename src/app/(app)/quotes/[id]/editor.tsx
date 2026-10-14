@@ -647,13 +647,14 @@ export default function QuoteEditor(props: EditorProps) {
                 type="number"
                 step="1"
                 min="1"
+                required
                 defaultValue={meta.execution_duration_days || ""}
                 onBlur={(e) => persistMeta({ execution_duration_days: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
                 className={`${inputCls} tabular`}
                 placeholder="مثال: 45"
               />
               <div className="text-[10.5px] text-[var(--foreground-muted)] mt-1">
-                الحقل الوحيد لمدة التنفيذ: يظهر في عرض السعر والعقد، وهو نفسه ما يُبنى عليه تبويب “جدول التنفيذ الزمني” تلقائياً.
+                حقل إلزامي — الحقل الوحيد لمدة التنفيذ: يظهر في عرض السعر والعقد، وهو نفسه ما يُبنى عليه تبويب “جدول التنفيذ الزمني” تلقائياً.
               </div>
             </Field>
             <Field label="المساحة الكلية للمشروع (م²)">
