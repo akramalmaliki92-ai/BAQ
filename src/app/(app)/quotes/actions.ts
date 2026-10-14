@@ -181,10 +181,11 @@ export async function setOverheadCostsAction(
 }
 
 export async function sendForReviewAction(quoteId: string): Promise<void> {
-  const { user } = await assertEditable(quoteId);
+  const { user, quote} = await assertEditable(quoteId);
   const sections = await getSectionsWithItems(quoteId);
   const hasItems = sections.some((s) => s.items.length > 0);
   if (!hasItems) throw new ApiError(400, "لا يمكن إرسال عرض سعر بلا فقرات");
+  if (!quote.execution_duration_days || quote.execution_duration_days <= 0) throw new ApiError(400, "يجب إدخال مدة التنفيذ المتوقعة بالأيام قبل إرسال العرض للمراجعة");
   await sendForReview(quoteId, user.id);
   revalidatePath(`/quotes/${quoteId}`);
   revalidatePath("/quotes");
@@ -202,6 +203,9 @@ export async function returnForRevisionAction(quoteId: string, note: string): Pr
 export async function approveQuoteAction(quoteId: string): Promise<void> {
   const user = await requireUser();
   if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية اعتماد عروض الأسعار");
+  const quote = await getQuote(quoteId);
+  if (!quote) throw new ApiError(404, "عرض السعر غير موجود");
+  if (!quote.execution_duration_days || quote.execution_duration_days <= 0) throw new ApiError(400, "يجب إدخال مدة التنفيذ المتوقعة بالأيام قبل الاعتماد");
   await approveQuote(quoteId, user.id);
   revalidatePath(`/quotes/${quoteId}`);
   revalidatePath("/quotes");
