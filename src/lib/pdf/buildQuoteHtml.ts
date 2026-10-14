@@ -132,15 +132,15 @@ export function buildQuoteHtml(
 
   .section-block { margin-bottom: 14px; }
   .section-title { font-weight: 800; font-size: 12.5px; border-bottom: 1px solid #e6e1d3; padding-bottom: 5px; margin-bottom: 6px; }
-  table.items { width: 100%; border-collapse: collapse; }
+  table.items { width: 100%; border-collapse: collapse; table-layout: fixed; }
   table.items thead { display: table-header-group; }
   table.items th { background: #faf8f4; color: #6b7264; font-size: 10px; font-weight: 800; padding: 6px 8px; text-align: right; border-bottom: 1px solid #e6e1d3; }
-  table.items td { padding: 6px 8px; border-bottom: 1px solid #efece4; font-size: 11px; }
+  table.items td { padding: 6px 8px; border-bottom: 1px solid #efece4; font-size: 11px; vertical-align: top; }
   table.items tr { page-break-inside: avoid; }
   td.num, th.num { text-align: center; font-variant-numeric: tabular-nums; }
-  td.total { font-weight: 800; }
+  td.total { font-weight: 800; width: 16%; }
   .note { font-size: 9.5px; color: #6b7264; margin-top: 2px; }
-  .detail-cell { font-size: 10px; color: #6b7264; }
+  .detail-cell { font-size: 10px; color: #6b7264; width: 38%; line-height: 1.6; }
   .section-sub { text-align: left; font-size: 11px; color: #6b7264; margin-top: 3px; }
   .section-sub b { color: #21261f; }
 
