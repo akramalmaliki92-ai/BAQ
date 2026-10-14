@@ -1391,7 +1391,7 @@ function DocumentPreview({
           return (
             <div key={s.id} className="mb-5">
               <div className="font-bold text-sm border-b border-[var(--border)] pb-1.5 mb-2">{si + 1}. {s.name}</div>
-              <table className="w-full text-xs">
+              <table className="w-full text-xs table-fixed [&_td]:align-top [&_th:nth-child(3)]:w-[38%] [&_td:nth-child(3)]:w-[38%] [&_th:nth-child(7)]:w-[16%] [&_td:nth-child(7)]:w-[16%]">
                 <thead>
                   <tr className="bg-[var(--surface-muted)] text-[var(--foreground-muted)]">
                     <th className="text-right font-bold px-2 py-1.5">#</th>
