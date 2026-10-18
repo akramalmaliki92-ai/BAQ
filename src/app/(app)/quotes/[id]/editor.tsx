@@ -740,6 +740,7 @@ export default function QuoteEditor(props: EditorProps) {
                           <th className="px-2 py-2 text-right font-bold w-8">#</th>
                           <th className="px-2 py-2 text-right font-bold min-w-[160px]">الفقرة</th>
                           <th className="px-2 py-2 text-right font-bold min-w-[220px]">التفاصيل</th>
+                          <th className="px-2 py-2 text-right font-bold min-w-[180px] bg-[var(--brand-light)]" title="ملاحظة داخلية تشرح أساس التسعير — لا تظهر للعميل أبداً">النوتة الحسابية *</th>
                           <th className="px-2 py-2 text-right font-bold w-24">الوحدة</th>
                           <th className="px-2 py-2 text-right font-bold w-20">الكمية</th>
                           <th className="px-2 py-2 text-right font-bold w-20" title="مدة تنفيذ تقديرية للفقرة — إعلامية، لا تدخل في حساب جدول التنفيذ الزمني">المدة (يوم)</th>
@@ -776,7 +777,7 @@ export default function QuoteEditor(props: EditorProps) {
                                                                     placeholder="اسم الفقرة"
                                                                   />
                               </td>
-                              <td className="px-2 py-1.5">
+                                                            <td className="px-2 py-1.5">
 <textarea
   disabled={!editable}
   defaultValue={it.description}
@@ -788,6 +789,19 @@ export default function QuoteEditor(props: EditorProps) {
   placeholder="مثال: مواد + عمل الجبسوم بورد على هيكل حديدي 40×40"
   title={it.description}
   />
+                              </td>
+                              <td className="px-2 py-1.5 bg-[var(--brand-light)]/40">
+                              <textarea
+                                  disabled={!editable}
+                                  defaultValue={it.internal_note}
+                                  onBlur={(e) => { patchItem(s.id, it.id, { internal_note: e.target.value }); commitItem(it.id, { internal_note: e.target.value }); }}
+                                  ref={autoGrowTextarea}
+                                  onInput={(e) => autoGrowTextarea(e.currentTarget)}
+                                  rows={1}
+                                  className={rowTextareaCls}
+                                  placeholder="لماذا هذا السعر؟ اكتب التفاصيل التي بُني عليها السعر (لا يراها العميل)"
+                                  title={it.internal_note}
+                                  />
                               </td>
                               <td className="px-2 py-1.5">
                                 <input
