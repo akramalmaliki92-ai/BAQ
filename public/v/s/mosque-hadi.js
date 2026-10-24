@@ -1,6 +1,6 @@
 /* جامع الإمام علي الهادي (ع) — مشهد مخصص للعارض الموحّد (public/v/s/mosque-hadi.js)
    تصميم المهندس المعماري على هيكل واقع الحال (ملف DWG ‏Project144 دون تعديل)، مع واقع الحال بديلاً للمقارنة.
-   المحاكاة: الشمس والظل لموقع البصرة، والإنارة الليلية (كشافات الواجهات والقبة والمئذنة وأعمدة الرصيف)، والجولة، واتجاه القبلة. */
+   المحاكاة: الشمس والظل لموقع البصرة، والإنارة الليلية (كشافات الواجهات والقبة والمئذنة وأعمدة الرصيف)، والجولة. */
 (function(){
 "use strict";
 const BASE="/v/s/mosque-hadi/";
@@ -159,40 +159,13 @@ const sunSim=new BAQK.Sun(ctx,{light:sun,hemi,lat:30.5,front:180,hour:16.5,maxI:
 (function(){const sel=sunSim.node.querySelector('[data-i="front"]');if(sel){const lb=sel.closest("label");if(lb)lb.style.display="none";}})();
 BAQK.tick(dt=>sunSim.tick(dt));
 
-/* ================= القبلة ================= */
-// اتجاه القبلة من البصرة إلى الكعبة المشرفة (دائرة عظمى)، مقاساً من الشمال باتجاه عقارب الساعة
-const QIBLA=(function(){const r=Math.PI/180,f1=30.5085*r,l1=47.7804*r,f2=21.4225*r,l2=39.8262*r,dl=l2-l1;
- return ((Math.atan2(Math.sin(dl)*Math.cos(f2),Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl))/r)+360)%360;})();
-const QG=new THREE.Group();QG.visible=false;W.add(QG);
-(function(){const goldM=new THREE.MeshStandardMaterial({color:0xd8a93a,metalness:0.6,roughness:0.35,emissive:0x3a2a00});
- const len=9,shaft=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.12,len),goldM),head=new THREE.Mesh(new THREE.ConeGeometry(0.9,1.8,3),goldM);
- shaft.position.z=-len/2;head.rotation.x=-Math.PI/2;head.position.z=-len-0.9;
- const a=new THREE.Group();a.add(shaft,head);
- // الاتجاه بإحداثيات DWG: شرق = sin، شمال = cos؛ المحلي: -ع = شمال
- a.rotation.y=-QIBLA*Math.PI/180; // الدوران حول المحور العمودي من اتجاه الشمال (-ع)
- a.position.copy(Lc(-16.2,11.45,-8.2));QG.add(a);
- const c=document.createElement("canvas");c.width=512;c.height=160;const g=c.getContext("2d");
- g.fillStyle="rgba(20,24,22,.78)";g.fillRect(0,0,512,160);g.fillStyle="#f2c14e";g.font="bold 64px sans-serif";g.textAlign="center";g.direction="rtl";
- g.fillText("اتجاه القبلة",256,78);g.font="bold 44px sans-serif";g.fillStyle="#fff";g.fillText(Math.round(QIBLA)+"° من الشمال",256,135);
- const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false}));sp.scale.set(5,1.56,1);
- const tip=new THREE.Vector3(0,0,-len-2.6).applyAxisAngle(new THREE.Vector3(0,1,0),a.rotation.y);
- sp.position.copy(a.position).add(tip).add(new THREE.Vector3(0,1.6,0));QG.add(sp);
- // سهم الشمال للمقارنة
- const nM=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.6});const n=new THREE.Mesh(new THREE.ConeGeometry(0.45,1.2,3),nM);
- n.rotation.x=-Math.PI/2;n.position.copy(Lc(-16.2,11.45,-14.6));QG.add(n);
- const c2=document.createElement("canvas");c2.width=128;c2.height=128;const g2=c2.getContext("2d");g2.fillStyle="#fff";g2.font="bold 96px sans-serif";g2.textAlign="center";g2.fillText("N",64,100);
- const s2=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c2),depthTest:false}));s2.scale.set(1.2,1.2,1);s2.position.copy(Lc(-16.2,13,-15.6));QG.add(s2);
-})();
-
 /* ================= الحالة والعرض ================= */
-const st={variant:0,light:true,palms:true,qibla:false,dust:false};
+const st={variant:0,light:true,palms:true,dust:false};
 function apply(){
  DESIGN.visible=st.variant===0;ASIS.visible=st.variant===1;
  FIX.visible=st.light;LIGHTS.visible=true;
  PALMS.forEach(o=>o.visible=st.palms);
- QG.visible=st.qibla;
  if(st.dust){if(!S.fog)S.fog=new THREE.Fog(0xcdb998,18,110);}else S.fog=null;
- if(st.qibla)BAQV.hud("اتجاه القبلة من البصرة: <b>"+Math.round(QIBLA)+"°</b> من الشمال باتجاه الجنوب الغربي");else BAQV.hud(null);
 }
 const T=new THREE.Vector3(0,4.5,0);
 const VIEWS={iso:[[-30,14,30],T],west:[[-42,5,0.3],T],south:[[0.5,5,42],T],top:[[0,56,0.01],T],
@@ -217,14 +190,13 @@ function register(){
   legends:{arch:[["#d9c9ad","حجر الجفّ"],["#3b3e42","رخام رمادي غامق للقواعد والأحزمة"],["#a8763e","مشربيات معدنية برونزية"],["#f2c14e","القبة الذهبية"]],
    light:[["#ffd9a0","كشافات أرضية لغسل الواجهات والبوابة"],["#ffe2b0","كشافات القبة والمئذنة"],["#4a4f52","أعمدة إنارة الرصيف 6 م"]],
    green:[["#5d7a43","نخيل في أحواض رخامية"]]},
-  options:[{id:"qibla",label:"اتجاه القبلة",get:()=>st.qibla,set:v=>{st.qibla=v;apply();}},
-   {id:"dust",label:"أجواء الغبار",get:()=>st.dust,set:v=>{st.dust=v;apply();}}],
+  options:[{id:"dust",label:"أجواء الغبار",get:()=>st.dust,set:v=>{st.dust=v;apply();}}],
   views:{over:()=>setView("iso"),top:()=>setView("top"),front:()=>setView("west")},
   insides:[{label:"الواجهة الجنوبية",go:()=>setView("south")},{label:"من الشارع",go:()=>setView("street")},{label:"أمام البوابة الركنية",go:()=>setView("door")}],
   sims:{sun:{node:sunSim.node},
    night:{get:()=>!!sunSim.isNight,set:v=>sunSim.setNight(v)},
    walk:{tour:{start:()=>{tourOn=true;tourT=0;},stop:()=>{tourOn=false;},on:()=>tourOn}}},
-  info:{facts:[["المشروع","إعادة تصميم واجهات الجامع"],["الموقع","البصرة"],["أبعاد المبنى","20.55 × 19.76 م"],["الطوابق","أرضي + أول (+6.60)"],["ارتفاع السطح","+9.95 م"],["الدروة","+11.00 م"],["البوابة الركنية","+12.80 م"],["قمة القبة","+17.15 م"],["المئذنة","نحو +22.0 م"],["اتجاه القبلة",Math.round(QIBLA)+"° من الشمال"]],
+  info:{facts:[["المشروع","إعادة تصميم واجهات الجامع"],["الموقع","البصرة"],["أبعاد المبنى","20.55 × 19.76 م"],["الطوابق","أرضي + أول (+6.60)"],["ارتفاع السطح","+9.95 م"],["الدروة","+11.00 م"],["البوابة الركنية","+12.80 م"],["قمة القبة","+17.15 م"],["المئذنة","نحو +22.0 م"]],
    about:["الجدران والفتحات والبلاطات والمناسيب من ملف واقع الحال بقياساته الحقيقية دون تعديل.","الواجهات الغربية والجنوبية والمدخل الركني منقولة من رسومات المهندس المعماري بمقياس 1:100.","حركة الشمس محسوبة لموقع البصرة، واتجاه الشمال حسب المخطط.","مواقع الكشافات وأعمدة الإنارة توضيحية، وتُعتمد في مخططات الكهرباء التنفيذية.","القبة والمئذنة في واقع الحال مضافة بأبعاد تقديرية من الصور."]}
  });
 }
