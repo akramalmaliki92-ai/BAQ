@@ -744,10 +744,10 @@ export default function QuoteEditor(props: EditorProps) {
                           <th className="px-2 py-2 text-right font-bold w-24">الوحدة</th>
                           <th className="px-2 py-2 text-right font-bold w-20">الكمية</th>
                           <th className="px-2 py-2 text-right font-bold w-20" title="مدة تنفيذ تقديرية للفقرة — إعلامية، لا تدخل في حساب جدول التنفيذ الزمني">المدة (يوم)</th>
-                          <th className="px-2 py-2 text-right font-bold w-24 bg-[var(--brand-light)]">الكلفة *</th>
-                          <th className="px-2 py-2 text-right font-bold w-20 bg-[var(--brand-light)]">الربح % *</th>
-                          <th className="px-2 py-2 text-right font-bold w-24">سعر الوحدة</th>
-                          <th className="px-2 py-2 text-right font-bold w-28">المجموع</th>
+                          <th className="px-2 py-2 text-right font-bold min-w-[120px] bg-[var(--brand-light)]">الكلفة *</th>
+                          <th className="px-1 py-2 text-right font-bold w-16 min-w-[64px] bg-[var(--brand-light)]">الربح % *</th>
+                          <th className="px-2 py-2 text-right font-bold min-w-[130px]">سعر الوحدة</th>
+                          <th className="px-2 py-2 text-right font-bold min-w-[120px]">المجموع</th>
                           <th className="px-2 py-2 text-right font-bold w-24 bg-[var(--brand-light)]" title={meta.distribute_overhead ? "شامل حصة الفقرة من مصاريف المشروع بعد توزيعها على الكلفة" : undefined}>الربح *</th>
                           <th className="px-2 py-2 text-right font-bold w-10">إخفاء</th>
                           <th className="px-2 py-2 w-32"></th>
@@ -848,7 +848,7 @@ export default function QuoteEditor(props: EditorProps) {
                                   className={`${rowInputCls} tabular`}
                                 />
                               </td>
-                              <td className="px-2 py-1.5 bg-[var(--brand-light)]/40">
+                              <td className="px-1 py-1.5 bg-[var(--brand-light)]/40">
                                 <div className="flex items-center gap-0.5">
                                   <input
                                     disabled={!editable}
@@ -861,7 +861,7 @@ export default function QuoteEditor(props: EditorProps) {
                                   <span className="text-[10px] text-[var(--foreground-muted)] shrink-0">٪</span>
                                 </div>
                               </td>
-                              <td className="px-2 py-1.5 tabular font-bold">
+                              <td className="px-2 py-1.5 tabular font-bold whitespace-nowrap">
                                 {editable && canDiscount ? (
                                   <input
                                     type="text" inputMode="decimal"
@@ -881,8 +881,8 @@ export default function QuoteEditor(props: EditorProps) {
                                   fmt(c.unitPrice)
                                 )}
                               </td>
-                              <td className="px-2 py-1.5 tabular font-bold">{fmt(c.saleTotal)}</td>
-                              <td className="px-2 py-1.5 tabular bg-[var(--brand-light)]/40" title={meta.distribute_overhead && eff ? "شامل حصة الفقرة من المصاريف بعد توزيعها على الكلفة" : undefined}>{fmt(c.profitTotal)}</td>
+                              <td className="px-2 py-1.5 tabular font-bold whitespace-nowrap">{fmt(c.saleTotal)}</td>
+                              <td className="px-2 py-1.5 tabular whitespace-nowrap bg-[var(--brand-light)]/40" title={meta.distribute_overhead && eff ? "شامل حصة الفقرة من المصاريف بعد توزيعها على الكلفة" : undefined}>{fmt(c.profitTotal)}</td>
                               <td className="px-2 py-1.5 text-center">
                                 <input
                                   disabled={!editable}
