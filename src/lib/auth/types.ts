@@ -19,6 +19,11 @@ export function canApprove(role: Role): boolean {
   return role === "ADMIN" || role === "MANAGER";
 }
 
+// تصدير نسخة موقّعة ومختومة باسم الشركة — للمدير ومسؤول النظام فقط (حساب أكرم)، لا لمعدّي التندر
+export function canSignDocuments(role: Role): boolean {
+  return role === "ADMIN" || role === "MANAGER";
+}
+
 export function canEditMarginOrDiscount(role: Role): boolean {
   return role === "ADMIN" || role === "MANAGER";
 }

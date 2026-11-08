@@ -7,6 +7,7 @@ import type { QuoteRow, SectionWithItems, PaymentRow, OverheadCostRow } from "@/
 import type { CompanySettings } from "@/lib/repo/settings";
 import type { ClientRow } from "@/lib/repo/clients";
 import { LOGO_DATA_URI } from "./logoBase64";
+import { sealHtml, SEAL_CSS, type SealImages } from "./seal";
 import { formatExecutionDuration } from "@/lib/format/duration";
 
 function esc(s: string | null | undefined): string {
@@ -31,7 +32,8 @@ export function buildContractHtml(
   payments: PaymentRow[],
   company: CompanySettings,
   client: ClientRow | undefined,
-  overheadCosts: OverheadCostRow[] = []
+  overheadCosts: OverheadCostRow[] = [],
+  seal?: SealImages
 ): string {
   const rawFlatItems = sections.flatMap((s) => s.items).map((it) => ({
     id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price,
@@ -231,6 +233,7 @@ export function buildContractHtml(
 
   .sign-grid { display: flex; justify-content: space-between; margin-top: 40px; gap: 24px; page-break-inside: avoid; }
   .sign-grid .box { flex: 1; border-top: 1px solid #8a8a8a; padding-top: 6px; font-size: 10.5px; text-align: center; color: #4a5148; }
+${SEAL_CSS}
   .doc-footer { margin-top: 24px; padding-top: 8px; border-top: 1px solid #e6e1d3; font-size: 9px; color: #9a9484; text-align: center; }
 </style>
 </head>
@@ -360,7 +363,7 @@ ${isCostPlus ? "\nيحق للطرف الثاني الاطلاع على مستن�
 ${tailArticlesHtml}
 
   <div class="sign-grid">
-    <div class="box">الطرف الأول (المقاول)<br>${esc(company.name_ar)}<br><br>التوقيع والختم</div>
+    <div class="box">الطرف الأول (المقاول)<br>${esc(company.name_ar)}${sealHtml(seal)}التوقيع والختم</div>
     <div class="box">الطرف الثاني (صاحب العمل)<br>${esc(quote.client_name)}<br><br>التوقيع</div>
   </div>
 

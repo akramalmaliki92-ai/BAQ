@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/guard";
-import { updateCompanySettings } from "@/lib/repo/settings";
+import { updateCompanySettings, setSealImage } from "@/lib/repo/settings";
 
 export interface SettingsFormState {
   error?: string;
@@ -33,4 +33,25 @@ export async function updateSettingsAction(_prev: SettingsFormState, formData: F
   });
   revalidatePath("/settings");
   return { ok: true };
+}
+
+// رفع أو حذف صورة التوقيع أو الختم — للمدير ومسؤول النظام فقط. الصورة تصل مصغّرة من المتصفح
+// بصيغة data URL، ويُتحقق هنا من نوعها وحجمها قبل الحفظ.
+const SEAL_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+const SEAL_MAX = 700_000;
+
+export async function setSealAction(kind: "signature" | "stamp", dataUrl: string | null): Promise<SettingsFormState> {
+  try {
+    await requireRole(["ADMIN", "MANAGER"]);
+    if (kind !== "signature" && kind !== "stamp") return { error: "نوع غير معروف" };
+    if (dataUrl !== null) {
+      if (!SEAL_RE.test(dataUrl)) return { error: "الصورة يجب أن تكون بصيغة PNG أو JPG أو WEBP" };
+      if (dataUrl.length > SEAL_MAX) return { error: "حجم الصورة كبير؛ استعمل صورة أصغر" };
+    }
+    await setSealImage(kind, dataUrl);
+    revalidatePath("/settings");
+    return { ok: true };
+  } catch {
+    return { error: "تعذّر الحفظ؛ تأكد من صلاحيتك وأعد المحاولة" };
+  }
 }

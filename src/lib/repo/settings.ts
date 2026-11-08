@@ -5,6 +5,8 @@ export interface CompanySettings {
   name_ar: string;
   name_en: string;
   logo_data_url: string | null;
+  signature_data_url: string | null;
+  stamp_data_url: string | null;
   address: string;
   phone: string;
   email: string;
@@ -29,7 +31,7 @@ export async function getCompanySettings(): Promise<CompanySettings> {
   return (await db.prepare("SELECT * FROM company WHERE id = 1").get()) as unknown as CompanySettings;
 }
 
-export async function updateCompanySettings(input: Partial<Omit<CompanySettings, "id" | "updated_at">>): Promise<void> {
+export async function updateCompanySettings(input: Partial<Omit<CompanySettings, "id" | "updated_at" | "signature_data_url" | "stamp_data_url">>): Promise<void> {
   const current = await getCompanySettings();
   const merged = { ...current, ...input };
   // ملاحظة: default_currency لا يُعدَّل من هذه الدالة عمداً لتفادي تعقيد إعادة تسعير القوائم القديمة تلقائياً
@@ -61,4 +63,17 @@ export async function updateCompanySettings(input: Partial<Omit<CompanySettings,
     merged.accent_light,
     nowIso()
   );
+}
+
+// حفظ أو حذف صورة التوقيع أو الختم — دالة مستقلة عن حفظ الإعدادات العامة حتى لا يمسح حفظُ
+// نموذج الإعدادات الصورتين بالخطأ، وحتى لا تمر الصورتان عبر أي نموذج آخر.
+export async function setSealImage(kind: "signature" | "stamp", dataUrl: string | null): Promise<void> {
+  const col = kind === "signature" ? "signature_data_url" : "stamp_data_url";
+  await db.prepare(`UPDATE company SET ${col}=?, updated_at=? WHERE id = 1`).run(dataUrl, nowIso());
+}
+
+// يُزيل الصورتين من بيانات الشركة قبل تمريرها لأي واجهة في المتصفح — لا تغادر الصورتان الخادم
+// إلا داخل ملف PDF موقّع يصدّره مخوَّل.
+export function withoutSealImages(c: CompanySettings): CompanySettings & { has_signature: boolean; has_stamp: boolean } {
+  return { ...c, signature_data_url: null, stamp_data_url: null, has_signature: !!c.signature_data_url, has_stamp: !!c.stamp_data_url };
 }

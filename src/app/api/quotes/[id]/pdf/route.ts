@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, apiErrorResponse } from "@/lib/auth/guard";
+import { requireUser, apiErrorResponse, ApiError } from "@/lib/auth/guard";
 import { getQuote, getSectionsWithItems, getPayments, getOverheadCosts, recordExport } from "@/lib/repo/quotes";
 import { getCompanySettings } from "@/lib/repo/settings";
 import { buildQuoteHtml } from "@/lib/pdf/buildQuoteHtml";
+import { canSignDocuments } from "@/lib/auth/types";
+import type { SealImages } from "@/lib/pdf/seal";
 import { buildExportFileName, contentDispositionHeader } from "@/lib/pdf/fileName";
 
 // تصدير PDF عبر خدمة سحابية جاهزة (api2pdf.com) بدل تشغيل متصفح Chromium محلياً — هذا يزيل
@@ -11,7 +13,7 @@ import { buildExportFileName, contentDispositionHeader } from "@/lib/pdf/fileNam
 // API2PDF_API_KEY. نفس الخدمة والمفتاح المستخدمان أصلاً في سير عمل "07 - PDF Report Generator" في n8n.
 const API2PDF_URL = "https://v2.api2pdf.com/chrome/pdf/html";
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireUser();
     const { id } = await params;
@@ -21,11 +23,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const sections = await getSectionsWithItems(id);
     const payments = await getPayments(id);
     const company = await getCompanySettings();
+
+    // النسخة الموقّعة والمختومة: للمدير ومسؤول النظام فقط، ولعرض معتمد فقط، وبشرط رفع الصورتين
+    // من صفحة الإعدادات. التحقق هنا على الخادم وليس بإخفاء الزر فقط، فلا يُفتح برابط مباشر.
+    const signed = req.nextUrl.searchParams.get("signed") === "1";
+    let seal: SealImages | undefined;
+    if (signed) {
+      if (!canSignDocuments(user.role)) throw new ApiError(403, "النسخة الموقّعة والمختومة متاحة للمدير فقط");
+      if (quote.status !== "APPROVED") throw new ApiError(400, "لا تُصدر نسخة موقّعة إلا لعرض سعر معتمد");
+      if (!company.signature_data_url || !company.stamp_data_url) {
+        throw new ApiError(400, "ارفع صورة التوقيع وصورة الختم أولاً من صفحة الإعدادات");
+      }
+      seal = { signature: company.signature_data_url, stamp: company.stamp_data_url };
+    }
     // مصاريف المشروع الداخلية تُجلب وتُمرَّر فقط عند تفعيل خيار توزيعها على الكلفة، بحيث يعكس
     // هذا الـPDF نفس السعر النهائي المرفوع الذي يراه المستخدم في واجهة المحرر.
     const overheadCosts = quote.distribute_overhead ? await getOverheadCosts(id) : [];
-    const html = buildQuoteHtml(quote, sections, payments, company, overheadCosts);
-    const fileName = buildExportFileName(quote.number, quote.project_name);
+    const html = buildQuoteHtml(quote, sections, payments, company, overheadCosts, seal);
+    const fileName = buildExportFileName(signed ? `${quote.number} - موقع` : quote.number, quote.project_name);
 
     const apiKey = process.env.API2PDF_API_KEY;
     if (!apiKey) {
@@ -67,7 +82,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
     const pdf = await fileRes.arrayBuffer();
 
-    await recordExportSafe(id, user.id, "تصدير نسخة PDF");
+    await recordExportSafe(id, user.id, signed ? "تصدير نسخة PDF موقّعة ومختومة" : "تصدير نسخة PDF");
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",

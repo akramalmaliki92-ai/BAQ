@@ -4,6 +4,8 @@ import { getQuote, getSectionsWithItems, getPayments, getOverheadCosts, recordEx
 import { getCompanySettings } from "@/lib/repo/settings";
 import { getClient } from "@/lib/repo/clients";
 import { buildContractHtml, buildContractNumber } from "@/lib/pdf/buildContractHtml";
+import { canSignDocuments } from "@/lib/auth/types";
+import type { SealImages } from "@/lib/pdf/seal";
 import { buildExportFileName, contentDispositionHeader } from "@/lib/pdf/fileName";
 
 // تحويل عرض سعر مُعتمد إلى عقد عمل جاهز للتقديم — يعتمد نفس آلية تصدير الـPDF عبر api2pdf.com
@@ -11,7 +13,7 @@ import { buildExportFileName, contentDispositionHeader } from "@/lib/pdf/fileNam
 // لأن العقد وثيقة تعاقدية يجب ألا تُصدَر قبل اكتمال الاعتماد الداخلي على السعر والشروط.
 const API2PDF_URL = "https://v2.api2pdf.com/chrome/pdf/html";
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireUser();
     const { id } = await params;
@@ -31,11 +33,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
     const company = await getCompanySettings();
+
+    // النسخة الموقّعة والمختومة: للمدير ومسؤول النظام فقط، ولعرض معتمد فقط، وبشرط رفع الصورتين
+    // من صفحة الإعدادات. التحقق هنا على الخادم وليس بإخفاء الزر فقط، فلا يُفتح برابط مباشر.
+    const signed = req.nextUrl.searchParams.get("signed") === "1";
+    let seal: SealImages | undefined;
+    if (signed) {
+      if (!canSignDocuments(user.role)) throw new ApiError(403, "النسخة الموقّعة والمختومة متاحة للمدير فقط");
+      if (quote.status !== "APPROVED") throw new ApiError(400, "لا تُصدر نسخة موقّعة إلا لعرض سعر معتمد");
+      if (!company.signature_data_url || !company.stamp_data_url) {
+        throw new ApiError(400, "ارفع صورة التوقيع وصورة الختم أولاً من صفحة الإعدادات");
+      }
+      seal = { signature: company.signature_data_url, stamp: company.stamp_data_url };
+    }
     const client = await getClient(quote.client_id);
     // مصاريف المشروع الداخلية تُجلب فقط عند تفعيل خيار توزيعها، بحيث تنعكس فعلياً على قيمة العقد
     // تماماً كما في عرض السعر وواجهة المحرر عند تفعيل نفس الخيار.
     const overheadCosts = quote.distribute_overhead ? await getOverheadCosts(id) : [];
-    const html = buildContractHtml(quote, sections, payments, company, client, overheadCosts);
+    const html = buildContractHtml(quote, sections, payments, company, client, overheadCosts, seal);
 
     const apiKey = process.env.API2PDF_API_KEY;
     if (!apiKey) {
@@ -43,7 +58,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const contractNumber = buildContractNumber(quote.number);
-    const fileName = buildExportFileName(contractNumber, quote.project_name);
+    const fileName = buildExportFileName(signed ? `${contractNumber} - موقع` : contractNumber, quote.project_name);
 
     const genRes = await fetch(API2PDF_URL, {
       method: "POST",
@@ -77,7 +92,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
     const pdf = await fileRes.arrayBuffer();
 
-    await recordExportSafe(id, user.id, "تحويل إلى عقد عمل وتصديره PDF");
+    await recordExportSafe(id, user.id, signed ? "تصدير عقد العمل موقّعاً ومختوماً" : "تحويل إلى عقد عمل وتصديره PDF");
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",

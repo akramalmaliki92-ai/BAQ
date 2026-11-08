@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { canEditMarginOrDiscount, canApprove, roleLabel } from "@/lib/auth/types";
+import { canEditMarginOrDiscount, canApprove, canSignDocuments, roleLabel } from "@/lib/auth/types";
 import { computeItem, computeQuoteTotals, computeUnitPrice, applyOverheadToItems, type PricingItem } from "@/lib/pricing/engine";
 import { amountToArabicWords } from "@/lib/pricing/numberToArabicWords";
 import type { EditorProps } from "./editor-types";
@@ -188,6 +188,9 @@ export default function QuoteEditor(props: EditorProps) {
   const payEditable = editable || quote.status === "APPROVED";
   const canDiscount = canEditMarginOrDiscount(currentUser.role);
   const canApproveRole = canApprove(currentUser.role);
+  // زر النسخة الموقّعة والمختومة: للمدير فقط وبعد الاعتماد (والتحقق نفسه مكرّر على الخادم)
+  const canSign = canSignDocuments(currentUser.role) && quote.status === "APPROVED";
+  const sealReady = company.has_signature && company.has_stamp;
 
   const flatItems = useMemo(
     () =>
@@ -600,6 +603,26 @@ export default function QuoteEditor(props: EditorProps) {
           >
             📄 تصدير PDF
           </a>
+          {canSign && (
+            sealReady ? (
+              <a
+                href={`/api/quotes/${quote.id}/pdf?signed=1`}
+                target="_blank"
+                className="rounded-xl border-2 font-bold text-sm px-4 py-2.5 hover:bg-[var(--surface-muted)]"
+                style={{ borderColor: "var(--brand-dark)", color: "var(--brand-dark)" }}
+              >
+                🖊️ عرض موقّع ومختوم
+              </a>
+            ) : (
+              <Link
+                href="/settings"
+                className="rounded-xl border border-dashed border-[var(--border)] font-bold text-xs px-3 py-2.5 text-[var(--foreground-muted)]"
+                title="ارفع صورة التوقيع وصورة الختم من صفحة الإعدادات"
+              >
+                🖊️ ارفع التوقيع والختم أولاً
+              </Link>
+            )
+          )}
           {quote.status === "APPROVED" && (
             meta.contract_type !== "COST_PLUS" && Math.abs(payPctTotal - 100) > 0.01 ? (
               <span className="rounded-xl border border-red-300 text-red-700 font-bold text-xs px-3 py-2.5" title="عدّل جدول الدفعات في تبويب تحرير">
@@ -615,6 +638,16 @@ export default function QuoteEditor(props: EditorProps) {
               🖋️ تحويل إلى عقد عمل
             </a>
             )
+          )}
+          {canSign && sealReady && !(meta.contract_type !== "COST_PLUS" && Math.abs(payPctTotal - 100) > 0.01) && (
+            <a
+              href={`/api/quotes/${quote.id}/contract?signed=1`}
+              target="_blank"
+              className="rounded-xl text-white font-bold text-sm px-4 py-2.5"
+              style={{ background: "var(--brand-dark)" }}
+            >
+              🖊️ عقد موقّع ومختوم
+            </a>
           )}
           {editable && (
             <button onClick={doSendForReview} disabled={pending} className="rounded-xl text-white font-bold text-sm px-4 py-2.5" style={{ background: "var(--brand-dark)" }}>

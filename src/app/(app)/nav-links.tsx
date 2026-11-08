@@ -21,7 +21,7 @@ const ITEMS: Item[] = [
   { href: "/quotes", label: "٥ · عروض الأسعار" },
   { href: "/contracts", label: "٦ · العقود" },
   { href: "/users", label: "المستخدمون", roles: ["ADMIN"] },
-  { href: "/settings", label: "إعدادات الشركة", roles: ["ADMIN"] },
+  { href: "/settings", label: "إعدادات الشركة", roles: ["ADMIN", "MANAGER"] },
 ];
 
 export default function NavLinks({ role }: { role: Role }) {

@@ -10,6 +10,6 @@ export interface EditorProps {
   overheadCosts: OverheadCostRow[];
   auditLog: AuditRow[];
   libraryItems: LibraryItemRow[];
-  company: CompanySettings;
+  company: CompanySettings & { has_signature: boolean; has_stamp: boolean };
   currentUser: { id: string; name: string; role: Role };
 }

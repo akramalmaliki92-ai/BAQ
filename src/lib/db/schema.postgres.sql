@@ -283,3 +283,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
   value TEXT NOT NULL DEFAULT ''
 );
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+
+-- صورتا توقيع المدير المفوض وختم الشركة (بصيغة data URL) — تُطبعان في خانة الطرف الأول فقط عند التصدير الموقّع
+ALTER TABLE company ADD COLUMN IF NOT EXISTS signature_data_url TEXT;
+ALTER TABLE company ADD COLUMN IF NOT EXISTS stamp_data_url TEXT;

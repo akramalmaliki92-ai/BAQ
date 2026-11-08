@@ -6,6 +6,7 @@ import { amountToArabicWords } from "@/lib/pricing/numberToArabicWords";
 import type { QuoteRow, SectionWithItems, PaymentRow, OverheadCostRow } from "@/lib/repo/quotes";
 import type { CompanySettings } from "@/lib/repo/settings";
 import { LOGO_DATA_URI } from "./logoBase64";
+import { sealHtml, SEAL_CSS, type SealImages } from "./seal";
 import { formatExecutionDuration } from "@/lib/format/duration";
 
 function esc(s: string | null | undefined): string {
@@ -20,7 +21,8 @@ export function buildQuoteHtml(
   sections: SectionWithItems[],
   payments: PaymentRow[],
   company: CompanySettings,
-  overheadCosts: OverheadCostRow[] = []
+  overheadCosts: OverheadCostRow[] = [],
+  seal?: SealImages
 ): string {
   const rawFlatItems = sections.flatMap((s) => s.items).map((it) => ({
     id: it.id, qty: it.qty, unitCost: it.unit_cost, marginPct: it.margin_pct, manualUnitPrice: it.manual_unit_price,
@@ -161,6 +163,7 @@ export function buildQuoteHtml(
 
   .sign-grid { display: flex; justify-content: space-between; margin-top: 46px; gap: 24px; page-break-inside: avoid; }
   .sign-grid .box { flex: 1; border-top: 1px solid #8a8a8a; padding-top: 6px; font-size: 10.5px; text-align: center; color: #4a5148; }
+${SEAL_CSS}
   .watermark {
     position: fixed; top: 40%; left: 0; right: 0; text-align: center;
     font-size: 90px; font-weight: 800; color: #EF9C3D; opacity: 0.09;
@@ -227,7 +230,7 @@ export function buildQuoteHtml(
   ${quote.outro_text ? `<div class="outro">${esc(quote.outro_text)}</div>` : ""}
 
   <div class="sign-grid">
-    <div class="box">اسم مُعدّ العرض: ${esc(quote.created_by_name || "")}<br><br>توقيع وختم الشركة</div>
+    <div class="box">اسم مُعدّ العرض: ${esc(quote.created_by_name || "")}${sealHtml(seal)}توقيع وختم الشركة</div>
     <div class="box">توقيع واستلام العميل</div>
   </div>
 

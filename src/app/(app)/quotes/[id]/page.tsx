@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requirePageUser } from "@/lib/auth/guard";
 import { getQuote, getSectionsWithItems, getPayments, getOverheadCosts, getAuditLog } from "@/lib/repo/quotes";
 import { listLibraryItems } from "@/lib/repo/library";
-import { getCompanySettings } from "@/lib/repo/settings";
+import { getCompanySettings, withoutSealImages } from "@/lib/repo/settings";
 import QuoteEditor from "./editor";
 
 export default async function QuoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,7 +16,8 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
   const overheadCosts = await getOverheadCosts(id);
   const auditLog = await getAuditLog(id);
   const libraryItems = await listLibraryItems();
-  const company = await getCompanySettings();
+  // صورتا التوقيع والختم لا تُرسلان للمتصفح؛ يُرسل فقط هل هما مرفوعتان أم لا
+  const company = withoutSealImages(await getCompanySettings());
 
   return (
     <QuoteEditor
