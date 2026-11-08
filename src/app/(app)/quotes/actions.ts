@@ -23,6 +23,8 @@ import {
   getItem,
   attachLibraryItemId,
   setPayments,
+  getPayments,
+  logAudit,
   setOverheadCosts,
   sendForReview,
   returnForRevision,
@@ -166,8 +168,28 @@ export async function setPaymentsAction(
   quoteId: string,
   payments: { label: string; pct: number }[]
 ): Promise<void> {
-  await assertEditable(quoteId);
-  await setPayments(quoteId, payments);
+  // جدول الدفعات وحده يبقى قابلاً للتعديل بعد الاعتماد (قبل طباعة العقد)، لأن تقسيم الدفعات يُتفق عليه
+  // غالباً مع الزبون بعد اعتماد السعر. المبالغ تُحسب دائماً من إجمالي العرض المعتمد فلا يتغيّر مبلغ العقد.
+  const user = await requireUser();
+  const quote = await getQuote(quoteId);
+  if (!quote) throw new ApiError(404, "عرض السعر غير موجود");
+  const approved = quote.status === "APPROVED";
+  if (!approved && !isEditable(quote.status)) {
+    throw new ApiError(403, "لا يمكن تعديل الدفعات في حالة عرض السعر الحالية");
+  }
+  const clean = payments.map((p) => ({ label: String(p.label ?? "").trim(), pct: Number(p.pct) || 0 }));
+  if (clean.some((p) => p.pct < 0 || p.pct > 100)) throw new ApiError(400, "نسبة الدفعة يجب أن تكون بين 0 و100");
+  if (approved) {
+    const before = await getPayments(quoteId);
+    const fmtList = (l: { label: string; pct: number }[]) => l.map((p) => `${p.label} ${Number(p.pct)}%`).join("، ");
+    const oldText = fmtList(before.map((p) => ({ label: p.label, pct: Number(p.pct) })));
+    const newText = fmtList(clean);
+    if (oldText === newText) return;
+    await setPayments(quoteId, clean);
+    await logAudit(quoteId, user.id, "PAYMENTS_EDITED_AFTER_APPROVAL", `قبل: ${oldText || "لا دفعات"} — بعد: ${newText || "لا دفعات"}`);
+  } else {
+    await setPayments(quoteId, clean);
+  }
   revalidatePath(`/quotes/${quoteId}`);
 }
 

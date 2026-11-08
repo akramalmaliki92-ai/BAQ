@@ -23,6 +23,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     const sections = await getSectionsWithItems(id);
     const payments = await getPayments(id);
+    // لا يُصدَر العقد ما لم يكن مجموع نسب الدفعات 100% بالضبط (عدا الكوست بلص الذي لا يعتمد جدول نسب).
+    if (quote.contract_type !== "COST_PLUS") {
+      const pctTotal = payments.reduce((s, p) => s + (Number(p.pct) || 0), 0);
+      if (payments.length === 0 || Math.abs(pctTotal - 100) > 0.01) {
+        throw new ApiError(400, `لا يمكن إصدار العقد: مجموع نسب الدفعات حالياً ${Math.round(pctTotal * 100) / 100}% ويجب أن يساوي 100%. عدّل جدول الدفعات في تبويب «تحرير» ثم أعد المحاولة.`);
+      }
+    }
     const company = await getCompanySettings();
     const client = await getClient(quote.client_id);
     // مصاريف المشروع الداخلية تُجلب فقط عند تفعيل خيار توزيعها، بحيث تنعكس فعلياً على قيمة العقد

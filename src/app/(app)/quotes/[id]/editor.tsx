@@ -183,6 +183,8 @@ export default function QuoteEditor(props: EditorProps) {
   const [cancelReason, setCancelReason] = useState("");
 
   const editable = EDITABLE_STATUSES.includes(quote.status);
+  // جدول الدفعات وحده يبقى مفتوحاً بعد الاعتماد لتقسيم الدفعات قبل طباعة العقد.
+  const payEditable = editable || quote.status === "APPROVED";
   const canDiscount = canEditMarginOrDiscount(currentUser.role);
   const canApproveRole = canApprove(currentUser.role);
 
@@ -585,6 +587,11 @@ export default function QuoteEditor(props: EditorProps) {
             📄 تصدير PDF
           </a>
           {quote.status === "APPROVED" && (
+            meta.contract_type !== "COST_PLUS" && Math.abs(payPctTotal - 100) > 0.01 ? (
+              <span className="rounded-xl border border-red-300 text-red-700 font-bold text-xs px-3 py-2.5" title="عدّل جدول الدفعات في تبويب تحرير">
+                ⚠ مجموع الدفعات {payPctTotal}% — يجب أن يكون 100% قبل تحويل العقد
+              </span>
+            ) : (
             <a
               href={`/api/quotes/${quote.id}/contract`}
               target="_blank"
@@ -593,6 +600,7 @@ export default function QuoteEditor(props: EditorProps) {
             >
               🖋️ تحويل إلى عقد عمل
             </a>
+            )
           )}
           {editable && (
             <button onClick={doSendForReview} disabled={pending} className="rounded-xl text-white font-bold text-sm px-4 py-2.5" style={{ background: "var(--brand-dark)" }}>
@@ -1053,13 +1061,13 @@ export default function QuoteEditor(props: EditorProps) {
                       {pay.map((p, idx) => (
                         <tr key={idx}>
                           <td className="py-1 pl-2">
-                            <input disabled={!editable} defaultValue={p.label} onChange={(e) => updatePayLabel(idx, e.target.value)} onBlur={commitPayLabels} className={inputCls} />
+                            <input disabled={!payEditable} defaultValue={p.label} onChange={(e) => updatePayLabel(idx, e.target.value)} onBlur={commitPayLabels} className={inputCls} />
                           </td>
                           <td className="py-1 pl-2 w-24">
-                            <input disabled={!editable} type="number" defaultValue={p.pct} onBlur={(e) => updatePayPct(idx, Number(e.target.value) || 0)} className={`${inputCls} tabular`} />
+                            <input disabled={!payEditable} type="number" step="any" min={0} max={100} defaultValue={p.pct} onBlur={(e) => updatePayPct(idx, Number(e.target.value) || 0)} className={`${inputCls} tabular`} />
                           </td>
                           <td className="py-1 tabular font-bold w-28 text-left">{fmt(contractTotals.finalTotal * (Number(p.pct) || 0) / 100)}</td>
-                          {editable && (
+                          {payEditable && (
                             <td className="w-8">
                               <button onClick={() => removePayment(idx)} className="text-red-600 text-xs">✕</button>
                             </td>
@@ -1071,7 +1079,12 @@ export default function QuoteEditor(props: EditorProps) {
                   <div className={`text-xs font-bold ${Math.abs(payPctTotal - 100) < 0.01 ? "text-[#2f7d4f]" : "text-[#a3402f]"}`}>
                     {Math.abs(payPctTotal - 100) < 0.01 ? "✓ مجموع النسب 100%" : `مجموع النسب حالياً ${payPctTotal}% (يفترض أن يكون 100%)`}
                   </div>
-                  {editable && (
+                  {quote.status === "APPROVED" && (
+                    <div className="text-[11px] text-[var(--foreground-muted)]">
+                      العرض معتمد: الأسعار مقفلة، وجدول الدفعات وحده قابل للتعديل قبل طباعة العقد. كل تعديل يُسجَّل في سجل العرض.
+                    </div>
+                  )}
+                  {payEditable && (
                     <button onClick={addPayment} className="self-start text-xs font-bold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--surface-muted)]">＋ إضافة دفعة</button>
                   )}
                 </>
@@ -1580,7 +1593,7 @@ function ScheduleTab({
 function AuditTab({ auditLog }: { auditLog: EditorProps["auditLog"] }) {
   const ACTION_LABEL: Record<string, string> = {
     CREATED: "إنشاء عرض السعر", PRICE_EDITED: "تعديل تسعير", SENT_FOR_REVIEW: "إرسال للمراجعة",
-    RETURNED_FOR_REVISION: "إعادة للتعديل", APPROVED: "اعتماد", APPROVAL_CANCELLED: "إلغاء اعتماد",
+    RETURNED_FOR_REVISION: "إعادة للتعديل", APPROVED: "اعتماد", APPROVAL_CANCELLED: "إلغاء اعتماد", PAYMENTS_EDITED_AFTER_APPROVAL: "تعديل الدفعات بعد الاعتماد",
     CANCELLED: "إلغاء عرض السعر", REOPENED: "استعادة عرض سعر ملغى", EXPORTED: "تصدير نسخة نهائية",
   };
   return (
