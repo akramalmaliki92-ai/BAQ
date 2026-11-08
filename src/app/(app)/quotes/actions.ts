@@ -193,6 +193,27 @@ export async function setPaymentsAction(
   revalidatePath(`/quotes/${quoteId}`);
 }
 
+// مدة التنفيذ تبقى قابلة للتعديل بعد الاعتماد (قبل طباعة العقد)، لأنها لا تدخل في حساب السعر؛
+// أثرها محصور في نص المدة في العرض والعقد والجدول الزمني. كل تعديل بعد الاعتماد يُسجَّل في سجل العرض.
+export async function setExecutionDurationAction(quoteId: string, days: number): Promise<void> {
+  const user = await requireUser();
+  const quote = await getQuote(quoteId);
+  if (!quote) throw new ApiError(404, "عرض السعر غير موجود");
+  const approved = quote.status === "APPROVED";
+  if (!approved && !isEditable(quote.status)) {
+    throw new ApiError(403, "لا يمكن تعديل مدة التنفيذ في حالة عرض السعر الحالية");
+  }
+  const clean = Math.max(0, Math.round(Number(days) || 0));
+  if (approved && clean <= 0) throw new ApiError(400, "مدة التنفيذ يجب أن تكون يوماً واحداً على الأقل بعد الاعتماد، لأن العقد يحتاجها");
+  const before = Number(quote.execution_duration_days) || 0;
+  if (before === clean) return;
+  await updateQuoteMeta(quoteId, { execution_duration_days: clean });
+  if (approved) {
+    await logAudit(quoteId, user.id, "DURATION_EDITED_AFTER_APPROVAL", `قبل: ${before} يوماً — بعد: ${clean} يوماً`);
+  }
+  revalidatePath(`/quotes/${quoteId}`);
+}
+
 export async function setOverheadCostsAction(
   quoteId: string,
   items: { label: string; days: number; daily_rate: number }[]

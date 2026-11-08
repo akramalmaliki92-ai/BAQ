@@ -21,6 +21,7 @@ import {
   moveItemToSectionAction,
   saveItemToLibraryAction,
   setPaymentsAction,
+  setExecutionDurationAction,
   setOverheadCostsAction,
   sendForReviewAction,
   returnForRevisionAction,
@@ -256,6 +257,19 @@ export default function QuoteEditor(props: EditorProps) {
     setMeta(next);
     startTransition(() => {
       updateQuoteMetaAction(quote.id, next).catch((e) => alert(e.message || "حدث خطأ"));
+    });
+  }
+
+  // مدة التنفيذ لها مسار حفظ مستقل يسمح بتعديلها بعد الاعتماد أيضاً (مع تسجيل التعديل في سجل العرض).
+  function saveDuration(days: number) {
+    if (days === (Number(meta.execution_duration_days) || 0)) return;
+    const prev = meta.execution_duration_days;
+    setMeta((m) => ({ ...m, execution_duration_days: days }));
+    startTransition(() => {
+      setExecutionDurationAction(quote.id, days).catch((e) => {
+        setMeta((m) => ({ ...m, execution_duration_days: prev }));
+        alert(e.message || "حدث خطأ");
+      });
     });
   }
 
@@ -651,13 +665,13 @@ export default function QuoteEditor(props: EditorProps) {
             </Field>
             <Field label="مدة التنفيذ (بالأيام)">
               <input
-                disabled={!editable}
+                disabled={!payEditable}
                 type="number"
                 step="1"
                 min="1"
                 required
                 defaultValue={meta.execution_duration_days || ""}
-                onBlur={(e) => persistMeta({ execution_duration_days: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
+                onBlur={(e) => saveDuration(Math.max(0, Math.round(Number(e.target.value) || 0)))}
                 className={`${inputCls} tabular`}
                 placeholder="مثال: 45"
               />
@@ -1081,7 +1095,7 @@ export default function QuoteEditor(props: EditorProps) {
                   </div>
                   {quote.status === "APPROVED" && (
                     <div className="text-[11px] text-[var(--foreground-muted)]">
-                      العرض معتمد: الأسعار مقفلة، وجدول الدفعات وحده قابل للتعديل قبل طباعة العقد. كل تعديل يُسجَّل في سجل العرض.
+                      العرض معتمد: الأسعار مقفلة، وجدول الدفعات ومدة التنفيذ وحدهما قابلان للتعديل قبل طباعة العقد. كل تعديل يُسجَّل في سجل العرض.
                     </div>
                   )}
                   {payEditable && (
@@ -1593,7 +1607,7 @@ function ScheduleTab({
 function AuditTab({ auditLog }: { auditLog: EditorProps["auditLog"] }) {
   const ACTION_LABEL: Record<string, string> = {
     CREATED: "إنشاء عرض السعر", PRICE_EDITED: "تعديل تسعير", SENT_FOR_REVIEW: "إرسال للمراجعة",
-    RETURNED_FOR_REVISION: "إعادة للتعديل", APPROVED: "اعتماد", APPROVAL_CANCELLED: "إلغاء اعتماد", PAYMENTS_EDITED_AFTER_APPROVAL: "تعديل الدفعات بعد الاعتماد",
+    RETURNED_FOR_REVISION: "إعادة للتعديل", APPROVED: "اعتماد", APPROVAL_CANCELLED: "إلغاء اعتماد", PAYMENTS_EDITED_AFTER_APPROVAL: "تعديل الدفعات بعد الاعتماد", DURATION_EDITED_AFTER_APPROVAL: "تعديل مدة التنفيذ بعد الاعتماد",
     CANCELLED: "إلغاء عرض السعر", REOPENED: "استعادة عرض سعر ملغى", EXPORTED: "تصدير نسخة نهائية",
   };
   return (
