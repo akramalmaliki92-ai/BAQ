@@ -919,6 +919,9 @@ export default function QuoteEditor(props: EditorProps) {
                               <td className="px-2 py-1.5 tabular font-bold whitespace-nowrap">
                                 {editable && canDiscount ? (
                                   <input
+                                    // المفتاح يتغير مع السعر المحسوب، فتُعاد تهيئة الخانة عند تعديل الكلفة أو النسبة
+                                    // (خانة غير متحكَّم بها: قيمتها الابتدائية لا تتحدث وحدها بعد التحميل)
+                                    key={`up-${it.id}-${it.manual_unit_price ?? raw.unitPrice}`}
                                     type="text" inputMode="decimal"
                                     defaultValue={fmt(it.manual_unit_price ?? raw.unitPrice)}
                                     onFocus={(e) => { e.currentTarget.value = String(it.manual_unit_price ?? raw.unitPrice); }}
