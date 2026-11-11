@@ -40,6 +40,8 @@ import {
   type ItemUpdateInput,
 } from "@/lib/repo/quotes";
 import { createLibraryItem } from "@/lib/repo/library";
+import { guarded } from "@/lib/auth/action-guard";
+import type { ActionError } from "@/lib/action-error";
 
 async function assertEditable(quoteId: string) {
   const user = await requireUser();
@@ -57,228 +59,272 @@ export async function createQuoteAction(projectId: string, executionDurationDays
   return quote.id;
 }
 
-export async function updateQuoteMetaAction(quoteId: string, input: QuoteMetaInput): Promise<void> {
-  const { user } = await assertEditable(quoteId);
-  if ((input.discount_value != null || input.discount_type) && !canEditMarginOrDiscount(user.role)) {
-    throw new ApiError(403, "لا تملك صلاحية تعديل الخصم");
-  }
-  await updateQuoteMeta(quoteId, input);
-  if (input.discount_value != null || input.discount_type) {
-    await recordPriceEdit(quoteId, user.id, `تعديل الخصم إلى ${input.discount_value ?? ""} (${input.discount_type ?? ""})`);
-  }
-  revalidatePath(`/quotes/${quoteId}`);
+export async function updateQuoteMetaAction(quoteId: string, input: QuoteMetaInput): Promise<void | ActionError> {
+  return guarded(async () => {
+    const { user } = await assertEditable(quoteId);
+    if ((input.discount_value != null || input.discount_type) && !canEditMarginOrDiscount(user.role)) {
+      throw new ApiError(403, "لا تملك صلاحية تعديل الخصم");
+    }
+    await updateQuoteMeta(quoteId, input);
+    if (input.discount_value != null || input.discount_type) {
+      await recordPriceEdit(quoteId, user.id, `تعديل الخصم إلى ${input.discount_value ?? ""} (${input.discount_type ?? ""})`);
+    }
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
-export async function addSectionAction(quoteId: string, name: string): Promise<string> {
-  await assertEditable(quoteId);
-  const id = await addSection(quoteId, name || "قسم جديد");
-  revalidatePath(`/quotes/${quoteId}`);
-  return id;
+export async function addSectionAction(quoteId: string, name: string): Promise<string | ActionError> {
+  return guarded(async () => {
+    await assertEditable(quoteId);
+    const id = await addSection(quoteId, name || "قسم جديد");
+    revalidatePath(`/quotes/${quoteId}`);
+    return id;
+  });
 }
 
-export async function renameSectionAction(quoteId: string, sectionId: string, name: string): Promise<void> {
-  await assertEditable(quoteId);
-  await renameSection(sectionId, name);
-  revalidatePath(`/quotes/${quoteId}`);
+export async function renameSectionAction(quoteId: string, sectionId: string, name: string): Promise<void | ActionError> {
+  return guarded(async () => {
+    await assertEditable(quoteId);
+    await renameSection(sectionId, name);
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
-export async function deleteSectionAction(quoteId: string, sectionId: string): Promise<void> {
-  await assertEditable(quoteId);
-  await deleteSection(sectionId);
-  revalidatePath(`/quotes/${quoteId}`);
+export async function deleteSectionAction(quoteId: string, sectionId: string): Promise<void | ActionError> {
+  return guarded(async () => {
+    await assertEditable(quoteId);
+    await deleteSection(sectionId);
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
-export async function reorderSectionsAction(quoteId: string, orderedIds: string[]): Promise<void> {
-  await assertEditable(quoteId);
-  await reorderSections(quoteId, orderedIds);
-  revalidatePath(`/quotes/${quoteId}`);
+export async function reorderSectionsAction(quoteId: string, orderedIds: string[]): Promise<void | ActionError> {
+  return guarded(async () => {
+    await assertEditable(quoteId);
+    await reorderSections(quoteId, orderedIds);
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
-export async function addLibraryItemAction(quoteId: string, sectionId: string, libraryItemId: string): Promise<string> {
-  await assertEditable(quoteId);
-  const id = await addItemFromLibrary(sectionId, libraryItemId, 1);
-  revalidatePath(`/quotes/${quoteId}`);
-  return id;
+export async function addLibraryItemAction(quoteId: string, sectionId: string, libraryItemId: string): Promise<string | ActionError> {
+  return guarded(async () => {
+    await assertEditable(quoteId);
+    const id = await addItemFromLibrary(sectionId, libraryItemId, 1);
+    revalidatePath(`/quotes/${quoteId}`);
+    return id;
+  });
 }
 
-export async function addCustomItemAction(quoteId: string, sectionId: string, input: CustomItemInput): Promise<string> {
-  await assertEditable(quoteId);
-  const id = await addCustomItem(sectionId, input);
-  revalidatePath(`/quotes/${quoteId}`);
-  return id;
+export async function addCustomItemAction(quoteId: string, sectionId: string, input: CustomItemInput): Promise<string | ActionError> {
+  return guarded(async () => {
+    await assertEditable(quoteId);
+    const id = await addCustomItem(sectionId, input);
+    revalidatePath(`/quotes/${quoteId}`);
+    return id;
+  });
 }
 
-export async function updateItemAction(quoteId: string, itemId: string, input: ItemUpdateInput): Promise<void> {
-  const { user } = await assertEditable(quoteId);
-  if (input.manual_unit_price !== undefined && !canEditMarginOrDiscount(user.role)) {
-    throw new ApiError(403, "لا تملك صلاحية تعديل السعر يدوياً");
-  }
-  await updateItem(itemId, input);
-  revalidatePath(`/quotes/${quoteId}`);
+export async function updateItemAction(quoteId: string, itemId: string, input: ItemUpdateInput): Promise<void | ActionError> {
+  return guarded(async () => {
+    const { user } = await assertEditable(quoteId);
+    if (input.manual_unit_price !== undefined && !canEditMarginOrDiscount(user.role)) {
+      throw new ApiError(403, "لا تملك صلاحية تعديل السعر يدوياً");
+    }
+    await updateItem(itemId, input);
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
-export async function deleteItemAction(quoteId: string, itemId: string): Promise<void> {
-  await assertEditable(quoteId);
-  await deleteItem(itemId);
-  revalidatePath(`/quotes/${quoteId}`);
+export async function deleteItemAction(quoteId: string, itemId: string): Promise<void | ActionError> {
+  return guarded(async () => {
+    await assertEditable(quoteId);
+    await deleteItem(itemId);
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
-export async function copyItemAction(quoteId: string, itemId: string): Promise<void> {
-  await assertEditable(quoteId);
-  await copyItem(itemId);
-  revalidatePath(`/quotes/${quoteId}`);
+export async function copyItemAction(quoteId: string, itemId: string): Promise<void | ActionError> {
+  return guarded(async () => {
+    await assertEditable(quoteId);
+    await copyItem(itemId);
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
-export async function reorderItemsAction(quoteId: string, sectionId: string, orderedIds: string[]): Promise<void> {
-  await assertEditable(quoteId);
-  await reorderItems(sectionId, orderedIds);
-  revalidatePath(`/quotes/${quoteId}`);
+export async function reorderItemsAction(quoteId: string, sectionId: string, orderedIds: string[]): Promise<void | ActionError> {
+  return guarded(async () => {
+    await assertEditable(quoteId);
+    await reorderItems(sectionId, orderedIds);
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
-export async function moveItemToSectionAction(quoteId: string, itemId: string, targetSectionId: string): Promise<void> {
-  await assertEditable(quoteId);
-  await moveItemToSection(itemId, targetSectionId);
-  revalidatePath(`/quotes/${quoteId}`);
+export async function moveItemToSectionAction(quoteId: string, itemId: string, targetSectionId: string): Promise<void | ActionError> {
+  return guarded(async () => {
+    await assertEditable(quoteId);
+    await moveItemToSection(itemId, targetSectionId);
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
 // حفظ فقرة مُدخلة يدوياً داخل عرض سعر إلى مكتبة الفقرات المشتركة، لإعادة استخدامها لاحقاً في عروض
 // أخرى دون كتابتها من جديد. متاحة لأي مستخدم يحرر العرض (وليس فقط ADMIN/MANAGER كإدارة المكتبة
 // الكاملة) لأن معدّ التندر هو غالباً من يلاحظ أن فقرة تستحق الإضافة أثناء إعداده العرض، والإضافة
 // هنا لا تُعدّل أو تحذف أي فقرة موجودة في المكتبة، فقط تُنشئ فقرة جديدة.
-export async function saveItemToLibraryAction(quoteId: string, itemId: string): Promise<string> {
-  await assertEditable(quoteId);
-  const item = await getItem(itemId);
-  if (!item) throw new ApiError(404, "الفقرة غير موجودة");
-  if (item.library_item_id) throw new ApiError(400, "هذه الفقرة مرتبطة بمكتبة الفقرات بالفعل");
-  const lib = await createLibraryItem({
-    code: item.code || undefined,
-    name: item.name || "فقرة بلا اسم",
-    description: item.description,
-    unit: item.unit,
-    default_unit_cost: item.unit_cost,
-    default_margin_pct: item.margin_pct,
+export async function saveItemToLibraryAction(quoteId: string, itemId: string): Promise<string | ActionError> {
+  return guarded(async () => {
+    await assertEditable(quoteId);
+    const item = await getItem(itemId);
+    if (!item) throw new ApiError(404, "الفقرة غير موجودة");
+    if (item.library_item_id) throw new ApiError(400, "هذه الفقرة مرتبطة بمكتبة الفقرات بالفعل");
+    const lib = await createLibraryItem({
+      code: item.code || undefined,
+      name: item.name || "فقرة بلا اسم",
+      description: item.description,
+      unit: item.unit,
+      default_unit_cost: item.unit_cost,
+      default_margin_pct: item.margin_pct,
+    });
+    await attachLibraryItemId(itemId, lib.id);
+    revalidatePath(`/quotes/${quoteId}`);
+    revalidatePath("/library");
+    return lib.id;
   });
-  await attachLibraryItemId(itemId, lib.id);
-  revalidatePath(`/quotes/${quoteId}`);
-  revalidatePath("/library");
-  return lib.id;
 }
 
 export async function setPaymentsAction(
   quoteId: string,
   payments: { label: string; pct: number }[]
-): Promise<void> {
-  // جدول الدفعات وحده يبقى قابلاً للتعديل بعد الاعتماد (قبل طباعة العقد)، لأن تقسيم الدفعات يُتفق عليه
-  // غالباً مع الزبون بعد اعتماد السعر. المبالغ تُحسب دائماً من إجمالي العرض المعتمد فلا يتغيّر مبلغ العقد.
-  const user = await requireUser();
-  const quote = await getQuote(quoteId);
-  if (!quote) throw new ApiError(404, "عرض السعر غير موجود");
-  const approved = quote.status === "APPROVED";
-  if (!approved && !isEditable(quote.status)) {
-    throw new ApiError(403, "لا يمكن تعديل الدفعات في حالة عرض السعر الحالية");
-  }
-  const clean = payments.map((p) => ({ label: String(p.label ?? "").trim(), pct: Number(p.pct) || 0 }));
-  if (clean.some((p) => p.pct < 0 || p.pct > 100)) throw new ApiError(400, "نسبة الدفعة يجب أن تكون بين 0 و100");
-  if (approved) {
-    const before = await getPayments(quoteId);
-    const fmtList = (l: { label: string; pct: number }[]) => l.map((p) => `${p.label} ${Number(p.pct)}%`).join("، ");
-    const oldText = fmtList(before.map((p) => ({ label: p.label, pct: Number(p.pct) })));
-    const newText = fmtList(clean);
-    if (oldText === newText) return;
-    await setPayments(quoteId, clean);
-    await logAudit(quoteId, user.id, "PAYMENTS_EDITED_AFTER_APPROVAL", `قبل: ${oldText || "لا دفعات"} — بعد: ${newText || "لا دفعات"}`);
-  } else {
-    await setPayments(quoteId, clean);
-  }
-  revalidatePath(`/quotes/${quoteId}`);
+): Promise<void | ActionError> {
+  return guarded(async () => {
+    // جدول الدفعات وحده يبقى قابلاً للتعديل بعد الاعتماد (قبل طباعة العقد)، لأن تقسيم الدفعات يُتفق عليه
+    // غالباً مع الزبون بعد اعتماد السعر. المبالغ تُحسب دائماً من إجمالي العرض المعتمد فلا يتغيّر مبلغ العقد.
+    const user = await requireUser();
+    const quote = await getQuote(quoteId);
+    if (!quote) throw new ApiError(404, "عرض السعر غير موجود");
+    const approved = quote.status === "APPROVED";
+    if (!approved && !isEditable(quote.status)) {
+      throw new ApiError(403, "لا يمكن تعديل الدفعات في حالة عرض السعر الحالية");
+    }
+    const clean = payments.map((p) => ({ label: String(p.label ?? "").trim(), pct: Number(p.pct) || 0 }));
+    if (clean.some((p) => p.pct < 0 || p.pct > 100)) throw new ApiError(400, "نسبة الدفعة يجب أن تكون بين 0 و100");
+    if (approved) {
+      const before = await getPayments(quoteId);
+      const fmtList = (l: { label: string; pct: number }[]) => l.map((p) => `${p.label} ${Number(p.pct)}%`).join("، ");
+      const oldText = fmtList(before.map((p) => ({ label: p.label, pct: Number(p.pct) })));
+      const newText = fmtList(clean);
+      if (oldText === newText) return;
+      await setPayments(quoteId, clean);
+      await logAudit(quoteId, user.id, "PAYMENTS_EDITED_AFTER_APPROVAL", `قبل: ${oldText || "لا دفعات"} — بعد: ${newText || "لا دفعات"}`);
+    } else {
+      await setPayments(quoteId, clean);
+    }
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
 // مدة التنفيذ تبقى قابلة للتعديل بعد الاعتماد (قبل طباعة العقد)، لأنها لا تدخل في حساب السعر؛
 // أثرها محصور في نص المدة في العرض والعقد والجدول الزمني. كل تعديل بعد الاعتماد يُسجَّل في سجل العرض.
-export async function setExecutionDurationAction(quoteId: string, days: number): Promise<void> {
-  const user = await requireUser();
-  const quote = await getQuote(quoteId);
-  if (!quote) throw new ApiError(404, "عرض السعر غير موجود");
-  const approved = quote.status === "APPROVED";
-  if (!approved && !isEditable(quote.status)) {
-    throw new ApiError(403, "لا يمكن تعديل مدة التنفيذ في حالة عرض السعر الحالية");
-  }
-  const clean = Math.max(0, Math.round(Number(days) || 0));
-  if (approved && clean <= 0) throw new ApiError(400, "مدة التنفيذ يجب أن تكون يوماً واحداً على الأقل بعد الاعتماد، لأن العقد يحتاجها");
-  const before = Number(quote.execution_duration_days) || 0;
-  if (before === clean) return;
-  await updateQuoteMeta(quoteId, { execution_duration_days: clean });
-  if (approved) {
-    await logAudit(quoteId, user.id, "DURATION_EDITED_AFTER_APPROVAL", `قبل: ${before} يوماً — بعد: ${clean} يوماً`);
-  }
-  revalidatePath(`/quotes/${quoteId}`);
+export async function setExecutionDurationAction(quoteId: string, days: number): Promise<void | ActionError> {
+  return guarded(async () => {
+    const user = await requireUser();
+    const quote = await getQuote(quoteId);
+    if (!quote) throw new ApiError(404, "عرض السعر غير موجود");
+    const approved = quote.status === "APPROVED";
+    if (!approved && !isEditable(quote.status)) {
+      throw new ApiError(403, "لا يمكن تعديل مدة التنفيذ في حالة عرض السعر الحالية");
+    }
+    const clean = Math.max(0, Math.round(Number(days) || 0));
+    if (approved && clean <= 0) throw new ApiError(400, "مدة التنفيذ يجب أن تكون يوماً واحداً على الأقل بعد الاعتماد، لأن العقد يحتاجها");
+    const before = Number(quote.execution_duration_days) || 0;
+    if (before === clean) return;
+    await updateQuoteMeta(quoteId, { execution_duration_days: clean });
+    if (approved) {
+      await logAudit(quoteId, user.id, "DURATION_EDITED_AFTER_APPROVAL", `قبل: ${before} يوماً — بعد: ${clean} يوماً`);
+    }
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
 export async function setOverheadCostsAction(
   quoteId: string,
   items: { label: string; days: number; daily_rate: number }[]
-): Promise<void> {
-  await assertEditable(quoteId);
-  await setOverheadCosts(quoteId, items);
-  revalidatePath(`/quotes/${quoteId}`);
+): Promise<void | ActionError> {
+  return guarded(async () => {
+    await assertEditable(quoteId);
+    await setOverheadCosts(quoteId, items);
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
-export async function sendForReviewAction(quoteId: string): Promise<void> {
-  const { user, quote} = await assertEditable(quoteId);
-  const sections = await getSectionsWithItems(quoteId);
-  const hasItems = sections.some((s) => s.items.length > 0);
-  if (!hasItems) throw new ApiError(400, "لا يمكن إرسال عرض سعر بلا فقرات");
-  if (!quote.execution_duration_days || quote.execution_duration_days <= 0) throw new ApiError(400, "يجب إدخال مدة التنفيذ المتوقعة بالأيام قبل إرسال العرض للمراجعة");
-  await sendForReview(quoteId, user.id);
-  revalidatePath(`/quotes/${quoteId}`);
-  revalidatePath("/quotes");
+export async function sendForReviewAction(quoteId: string): Promise<void | ActionError> {
+  return guarded(async () => {
+    const { user, quote} = await assertEditable(quoteId);
+    const sections = await getSectionsWithItems(quoteId);
+    const hasItems = sections.some((s) => s.items.length > 0);
+    if (!hasItems) throw new ApiError(400, "لا يمكن إرسال عرض سعر بلا فقرات");
+    if (!quote.execution_duration_days || quote.execution_duration_days <= 0) throw new ApiError(400, "يجب إدخال مدة التنفيذ المتوقعة بالأيام قبل إرسال العرض للمراجعة");
+    await sendForReview(quoteId, user.id);
+    revalidatePath(`/quotes/${quoteId}`);
+    revalidatePath("/quotes");
+  });
 }
 
-export async function returnForRevisionAction(quoteId: string, note: string): Promise<void> {
-  const user = await requireUser();
-  if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية إعادة العرض للتعديل");
-  if (!note || !note.trim()) throw new ApiError(400, "يجب كتابة ملاحظة توضح سبب الإعادة");
-  await returnForRevision(quoteId, user.id, note.trim());
-  revalidatePath(`/quotes/${quoteId}`);
-  revalidatePath("/quotes");
+export async function returnForRevisionAction(quoteId: string, note: string): Promise<void | ActionError> {
+  return guarded(async () => {
+    const user = await requireUser();
+    if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية إعادة العرض للتعديل");
+    if (!note || !note.trim()) throw new ApiError(400, "يجب كتابة ملاحظة توضح سبب الإعادة");
+    await returnForRevision(quoteId, user.id, note.trim());
+    revalidatePath(`/quotes/${quoteId}`);
+    revalidatePath("/quotes");
+  });
 }
 
-export async function approveQuoteAction(quoteId: string): Promise<void> {
-  const user = await requireUser();
-  if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية اعتماد عروض الأسعار");
-  const quote = await getQuote(quoteId);
-  if (!quote) throw new ApiError(404, "عرض السعر غير موجود");
-  if (!quote.execution_duration_days || quote.execution_duration_days <= 0) throw new ApiError(400, "يجب إدخال مدة التنفيذ المتوقعة بالأيام قبل الاعتماد");
-  await approveQuote(quoteId, user.id);
-  revalidatePath(`/quotes/${quoteId}`);
-  revalidatePath("/quotes");
+export async function approveQuoteAction(quoteId: string): Promise<void | ActionError> {
+  return guarded(async () => {
+    const user = await requireUser();
+    if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية اعتماد عروض الأسعار");
+    const quote = await getQuote(quoteId);
+    if (!quote) throw new ApiError(404, "عرض السعر غير موجود");
+    if (!quote.execution_duration_days || quote.execution_duration_days <= 0) throw new ApiError(400, "يجب إدخال مدة التنفيذ المتوقعة بالأيام قبل الاعتماد");
+    await approveQuote(quoteId, user.id);
+    revalidatePath(`/quotes/${quoteId}`);
+    revalidatePath("/quotes");
+  });
 }
 
-export async function cancelApprovalAction(quoteId: string, reason: string): Promise<void> {
-  const user = await requireUser();
-  if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية إلغاء الاعتماد");
-  if (!reason || !reason.trim()) throw new ApiError(400, "يجب كتابة سبب إلغاء الاعتماد");
-  await cancelApproval(quoteId, user.id, reason.trim());
-  revalidatePath(`/quotes/${quoteId}`);
+export async function cancelApprovalAction(quoteId: string, reason: string): Promise<void | ActionError> {
+  return guarded(async () => {
+    const user = await requireUser();
+    if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية إلغاء الاعتماد");
+    if (!reason || !reason.trim()) throw new ApiError(400, "يجب كتابة سبب إلغاء الاعتماد");
+    await cancelApproval(quoteId, user.id, reason.trim());
+    revalidatePath(`/quotes/${quoteId}`);
+  });
 }
 
-export async function cancelQuoteAction(quoteId: string, reason: string): Promise<void> {
-  const user = await requireUser();
-  if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية إلغاء عرض السعر");
-  await cancelQuote(quoteId, user.id, reason.trim());
-  revalidatePath(`/quotes/${quoteId}`);
-  revalidatePath("/quotes");
+export async function cancelQuoteAction(quoteId: string, reason: string): Promise<void | ActionError> {
+  return guarded(async () => {
+    const user = await requireUser();
+    if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية إلغاء عرض السعر");
+    await cancelQuote(quoteId, user.id, reason.trim());
+    revalidatePath(`/quotes/${quoteId}`);
+    revalidatePath("/quotes");
+  });
 }
 
-export async function reopenQuoteAction(quoteId: string, reason: string): Promise<void> {
-  const user = await requireUser();
-  if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية استعادة عرض سعر ملغى");
-  const quote = await getQuote(quoteId);
-  if (!quote) throw new ApiError(404, "عرض السعر غير موجود");
-  if (quote.status !== "CANCELLED") throw new ApiError(400, "عرض السعر ليس ملغى أصلاً");
-  await reopenQuote(quoteId, user.id, reason.trim() || "استعادة عرض سعر ملغى للتعديل");
-  revalidatePath(`/quotes/${quoteId}`);
-  revalidatePath("/quotes");
+export async function reopenQuoteAction(quoteId: string, reason: string): Promise<void | ActionError> {
+  return guarded(async () => {
+    const user = await requireUser();
+    if (!canApprove(user.role)) throw new ApiError(403, "لا تملك صلاحية استعادة عرض سعر ملغى");
+    const quote = await getQuote(quoteId);
+    if (!quote) throw new ApiError(404, "عرض السعر غير موجود");
+    if (quote.status !== "CANCELLED") throw new ApiError(400, "عرض السعر ليس ملغى أصلاً");
+    await reopenQuote(quoteId, user.id, reason.trim() || "استعادة عرض سعر ملغى للتعديل");
+    revalidatePath(`/quotes/${quoteId}`);
+    revalidatePath("/quotes");
+  });
 }
 
 export async function recordExportAction(quoteId: string, note: string): Promise<void> {

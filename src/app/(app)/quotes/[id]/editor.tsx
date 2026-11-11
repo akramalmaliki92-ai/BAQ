@@ -29,7 +29,7 @@ import {
   cancelApprovalAction,
   cancelQuoteAction,
   reopenQuoteAction,
-} from "../actions";
+} from "./actions-client";
 import { formatExecutionDuration } from "@/lib/format/duration";
 
 const EDITABLE_STATUSES = ["DRAFT", "NEEDS_REVISION"];
