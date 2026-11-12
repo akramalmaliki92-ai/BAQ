@@ -37,6 +37,9 @@ const BROWN = "#3b3026";
 // مقاسات الطباعة (A4): الترويسة الثابتة أعلى كل صفحة، وهامش سفلي يحجزه قالب التذييل
 export const QUOTE_PDF_MARGINS = { top: "0mm", bottom: "15mm", left: "0mm", right: "0mm" };
 
+// التوقيع والختم في عرض السعر للمدير المفوض وحده، فهو من يعتمد العرض؛ مُعدّ العرض يظهر في بيانات العرض أعلى الصفحة
+const AUTHORIZED_SIGNATORY = { title: "المدير المفوض", name: "أكرم علي لازم" };
+
 // قالب تذييل الطباعة: شريط برتقالي بمعلومات الاتصال ورقم الصفحة، يتكرر في كل صفحة.
 // قوالب الترويسة والتذييل في Chrome لا ترث خطوط الصفحة ولا أنماطها، لذلك يُضمَّن كل شيء داخله.
 export function buildQuoteFooterTemplate(company: CompanySettings, quoteNumber: string): string {
@@ -135,6 +138,7 @@ export function buildQuoteHtml(
     ["المشروع", clean(quote.project_name)],
     ["تاريخ الإصدار", `<span dir="ltr">${dmy(quote.issue_date)}</span>`],
   ];
+  if (quote.created_by_name) meta.push(["مُعدّ العرض", clean(quote.created_by_name)]);
   if (quote.valid_until) meta.push(["صالح حتى", `<span dir="ltr">${dmy(quote.valid_until)}</span>`]);
   if (quote.execution_duration_days) meta.push(["مدة التنفيذ", esc(formatExecutionDuration(quote.execution_duration_days))]);
 
@@ -281,7 +285,7 @@ ${SEAL_CSS}
           <div class="box">
             ${seal && sealHtml(seal) !== "<br><br>" ? sealHtml(seal) : `<div class="space"></div>`}
             <div class="t">توقيع وختم الشركة</div>
-            ${quote.created_by_name ? `<div class="by">مُعدّ العرض: ${clean(quote.created_by_name)}</div>` : ""}
+            <div class="by">${esc(AUTHORIZED_SIGNATORY.title)}: ${esc(AUTHORIZED_SIGNATORY.name)}</div>
           </div>
           <div class="box">
             <div class="space"></div>

@@ -45,6 +45,10 @@ const UNITS = ["متر طولي", "متر مربع", "متر مكعب", "عدد"
 function fmt(n: number) {
   return Math.round(n || 0).toLocaleString("en-US");
 }
+// الكمية قد تكون كسرية (١٢٫٥ م²) — فواصل الآلاف مع إبقاء الكسور حتى ٣ مراتب
+function fmtQty(n: number) {
+  return (n || 0).toLocaleString("en-US", { maximumFractionDigits: 3 });
+}
 
 /* ---------------- جدول التنفيذ الزمني ----------------
  * حساب مشتق بالكامل من بيانات العرض الحالية (الأقسام + قيمها + مدة التنفيذ بالأيام + نسب الدفعات)،
@@ -797,13 +801,13 @@ export default function QuoteEditor(props: EditorProps) {
                           <th className="px-2 py-2 text-right font-bold min-w-[220px]">التفاصيل</th>
                           <th className="px-2 py-2 text-right font-bold min-w-[180px] bg-[var(--brand-light)]" title="ملاحظة داخلية تشرح أساس التسعير — لا تظهر للعميل أبداً">النوتة الحسابية *</th>
                           <th className="px-2 py-2 text-right font-bold w-24">الوحدة</th>
-                          <th className="px-2 py-2 text-right font-bold w-20">الكمية</th>
-                          <th className="px-2 py-2 text-right font-bold w-20" title="مدة تنفيذ تقديرية للفقرة — إعلامية، لا تدخل في حساب جدول التنفيذ الزمني">المدة (يوم)</th>
-                          <th className="px-2 py-2 text-right font-bold min-w-[120px] bg-[var(--brand-light)]">الكلفة *</th>
-                          <th className="px-1 py-2 text-right font-bold w-16 min-w-[64px] bg-[var(--brand-light)]">الربح % *</th>
-                          <th className="px-2 py-2 text-right font-bold min-w-[130px]">سعر الوحدة</th>
-                          <th className="px-2 py-2 text-right font-bold min-w-[120px]">المجموع</th>
-                          <th className="px-2 py-2 text-right font-bold w-24 bg-[var(--brand-light)]" title={meta.distribute_overhead ? "شامل حصة الفقرة من مصاريف المشروع بعد توزيعها على الكلفة" : undefined}>الربح *</th>
+                          <th className="px-2 py-2 text-right font-bold min-w-[110px]">الكمية</th>
+                          <th className="px-2 py-2 text-right font-bold min-w-[80px]" title="مدة تنفيذ تقديرية للفقرة — إعلامية، لا تدخل في حساب جدول التنفيذ الزمني">المدة (يوم)</th>
+                          <th className="px-2 py-2 text-right font-bold min-w-[140px] bg-[var(--brand-light)]">الكلفة *</th>
+                          <th className="px-1 py-2 text-right font-bold min-w-[80px] bg-[var(--brand-light)]">الربح % *</th>
+                          <th className="px-2 py-2 text-right font-bold min-w-[140px]">سعر الوحدة</th>
+                          <th className="px-2 py-2 text-right font-bold min-w-[150px]">المجموع</th>
+                          <th className="px-2 py-2 text-right font-bold min-w-[130px] bg-[var(--brand-light)]" title={meta.distribute_overhead ? "شامل حصة الفقرة من مصاريف المشروع بعد توزيعها على الكلفة" : undefined}>الربح *</th>
                           <th className="px-2 py-2 text-right font-bold w-10">إخفاء</th>
                           <th className="px-2 py-2 w-32"></th>
                         </tr>
@@ -870,10 +874,15 @@ export default function QuoteEditor(props: EditorProps) {
                               <td className="px-2 py-1.5">
                                 <input
                                   disabled={!editable}
-                                  type="number" step="any"
-                                  defaultValue={it.qty}
-                                  onChange={(e) => patchItem(s.id, it.id, { qty: Number(e.target.value) || 0 })}
-                                  onBlur={(e) => commitItem(it.id, { qty: Number(e.target.value) || 0 })}
+                                  type="text" inputMode="decimal"
+                                  defaultValue={fmtQty(it.qty)}
+                                  onFocus={(e) => { e.currentTarget.value = String(it.qty); }}
+                                  onChange={(e) => patchItem(s.id, it.id, { qty: Number(e.target.value.replace(/,/g, "")) || 0 })}
+                                  onBlur={(e) => {
+                                    const v = Number(e.target.value.replace(/,/g, "")) || 0;
+                                    commitItem(it.id, { qty: v });
+                                    e.currentTarget.value = fmtQty(v);
+                                  }}
                                   className={`${rowInputCls} tabular`}
                                 />
                               </td>
@@ -1492,7 +1501,7 @@ function DocumentPreview({
                         <td className="px-2 py-1.5">{it.name}{it.client_note && <div className="text-[10px] text-[var(--foreground-muted)]">{it.client_note}</div>}</td>
                         <td className="px-2 py-1.5 text-[var(--foreground-muted)]">{it.description}</td>
                         <td className="px-2 py-1.5">{it.unit}</td>
-                        <td className="px-2 py-1.5 tabular">{fmt(it.qty)}</td>
+                        <td className="px-2 py-1.5 tabular">{fmtQty(it.qty)}</td>
                         {!hideUnitPrice && <td className="px-2 py-1.5 tabular">{fmt(c.unitPrice)}</td>}
                         <td className="px-2 py-1.5 tabular font-bold">{fmt(c.saleTotal)}</td>
                         {internal && <td className="px-2 py-1.5 tabular bg-[var(--brand-light)]/30">{fmt(c.costTotal)}</td>}

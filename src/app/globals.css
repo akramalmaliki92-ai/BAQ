@@ -47,3 +47,41 @@ body {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* ===== تنسيق الأرقام والنصوص في كل الجداول والحقول =====
+   ١. الأرقام لا تنكسر على سطرين (التاريخ، المبالغ، الأرقام المرجعية).
+   ٢. أسهم الزيادة والنقصان في حقول الأرقام مخفية لأنها تأكل عرض الحقل فيختفي جزء من الرقم.
+   ٣. عناوين الأعمدة وشارات الحالة على سطر واحد.
+   ٤. النص الطويل يلتف بتوازن بدل أن تبقى كلمة منفردة في سطر. */
+.tabular {
+  white-space: nowrap;
+  unicode-bidi: isolate;
+}
+
+@layer base {
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input {
+    text-overflow: ellipsis;
+  }
+  th {
+    white-space: nowrap;
+  }
+  span.rounded-full {
+    white-space: nowrap;
+    display: inline-block;
+  }
+  td, textarea, p, li {
+    text-wrap: pretty;
+  }
+  h1, h2, h3, h4 {
+    text-wrap: balance;
+  }
+}
