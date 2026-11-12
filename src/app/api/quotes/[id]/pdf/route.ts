@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, apiErrorResponse, ApiError } from "@/lib/auth/guard";
 import { getQuote, getSectionsWithItems, getPayments, getOverheadCosts, recordExport } from "@/lib/repo/quotes";
 import { getCompanySettings } from "@/lib/repo/settings";
-import { buildQuoteHtml } from "@/lib/pdf/buildQuoteHtml";
+import { buildQuoteHtml, buildQuoteFooterTemplate, QUOTE_PDF_MARGINS } from "@/lib/pdf/buildQuoteHtml";
 import { canSignDocuments } from "@/lib/auth/types";
 import type { SealImages } from "@/lib/pdf/seal";
 import { buildExportFileName, contentDispositionHeader } from "@/lib/pdf/fileName";
@@ -56,13 +56,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         fileName,
         options: {
           printBackground: true,
-          // api2pdf (وPuppeteer تحتها) تتوقع قيم الهوامش كنصوص تحمل وحدة قياس (px/in/mm)، وليس أرقاماً
-          // مجردة. إرسالها كأرقام خام كان يُنتج هوامش غير صالحة يُفسّرها Chrome كصفحة بلا مساحة طباعة
-          // ("content area is empty"), وهو ما كان يفشّل كل عملية تصدير.
-          marginTop: "16px",
-          marginBottom: "18px",
-          marginLeft: "12px",
-          marginRight: "12px",
+          // الترويسة والنقش داخل الصفحة نفسها، والتذييل (معلومات الاتصال ورقم الصفحة) قالب طباعة
+          // يتكرر في الهامش السفلي لكل صفحة. قيم الهوامش نصوص بوحدة قياس كما تتطلب api2pdf.
+          displayHeaderFooter: true,
+          headerTemplate: "<span></span>",
+          footerTemplate: buildQuoteFooterTemplate(company, quote.number),
+          marginTop: QUOTE_PDF_MARGINS.top,
+          marginBottom: QUOTE_PDF_MARGINS.bottom,
+          marginLeft: QUOTE_PDF_MARGINS.left,
+          marginRight: QUOTE_PDF_MARGINS.right,
         },
       }),
     });
