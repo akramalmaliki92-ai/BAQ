@@ -148,7 +148,8 @@ ${ALMARAI_FONT_FACES}
   html, body { margin: 0; padding: 0; }
   body { font-family: 'Almarai', Tahoma, Arial, sans-serif; direction: rtl; color: ${BROWN}; font-size: 10.5px; line-height: 1.7; }
 
-  /* الترويسة الثابتة: تتكرر في أعلى كل صفحة مع النقش */
+  /* الترويسة الثابتة: تتكرر في أعلى كل صفحة مع النقش. النقش في أسفل الطبقات، وكل الصناديق والجداول
+     فوقه بخلفيات معتمة (التظليل البرتقالي فوق الأبيض) حتى لا يظهر النقش من خلالها */
   .pattern { position: fixed; top: 0; left: 0; width: 210mm; height: 297mm; z-index: 0; }
   .pattern img { width: 100%; height: 100%; }
   .head { position: fixed; top: 0; left: 0; right: 0; height: 28mm; padding: 8mm 14mm 0; z-index: 1;
@@ -169,7 +170,7 @@ ${ALMARAI_FONT_FACES}
   .title .co { font-size: 10px; opacity: .75; }
 
   .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 24px; padding: 8px 14px; margin-bottom: 10px;
-          background: rgba(239,156,61,.08); border-right: 3px solid ${ORANGE}; border-radius: 4px; }
+          background: linear-gradient(rgba(239,156,61,.08), rgba(239,156,61,.08)), #ffffff; border-right: 3px solid ${ORANGE}; border-radius: 4px; }
   .meta div { font-size: 10.5px; }
   .meta .k { font-weight: 700; opacity: .7; }
 
@@ -182,8 +183,8 @@ ${ALMARAI_FONT_FACES}
   table.items { width: 100%; border-collapse: collapse; table-layout: fixed; }
   table.items thead { display: table-header-group; }
   table.items th { background: ${ORANGE}; color: #ffffff; font-size: 9.5px; font-weight: 700; padding: 6px 5px; text-align: center; }
-  table.items td { padding: 7px 5px; border-bottom: 1px solid rgba(239,156,61,.35); vertical-align: top; font-size: 10px; word-wrap: break-word; }
-  table.items tbody tr:nth-child(even):not(.sub) td { background: rgba(239,156,61,.10); }
+  table.items td { background: #ffffff; padding: 7px 5px; border-bottom: 1px solid rgba(239,156,61,.35); vertical-align: top; font-size: 10px; word-wrap: break-word; }
+  table.items tbody tr:nth-child(even):not(.sub) td { background: linear-gradient(rgba(239,156,61,.10), rgba(239,156,61,.10)), #ffffff; }
   table.items tr { break-inside: avoid; page-break-inside: avoid; }
   td.c { text-align: center; }
   td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -196,18 +197,18 @@ ${ALMARAI_FONT_FACES}
 
   .keep { break-inside: avoid; page-break-inside: avoid; }
 
-  .totals { margin-top: 10px; border: 1px solid rgba(239,156,61,.5); border-radius: 6px; overflow: hidden; }
+  .totals { margin-top: 10px; background: #ffffff; border: 1px solid rgba(239,156,61,.5); border-radius: 6px; overflow: hidden; }
   .totals .row { display: flex; justify-content: space-between; padding: 6px 14px; font-size: 11px; }
   .totals .row + .row { border-top: 1px solid rgba(239,156,61,.25); }
-  .totals .final { background: rgba(239,156,61,.12); font-size: 14px; font-weight: 800; }
+  .totals .final { background: linear-gradient(rgba(239,156,61,.12), rgba(239,156,61,.12)), #ffffff; font-size: 14px; font-weight: 800; }
   .totals .final b { color: ${BROWN}; }
-  .totals .words { padding: 6px 14px 8px; font-size: 10px; background: rgba(239,156,61,.12); border-top: 1px dashed rgba(239,156,61,.5); }
+  .totals .words { padding: 6px 14px 8px; font-size: 10px; background: linear-gradient(rgba(239,156,61,.12), rgba(239,156,61,.12)), #ffffff; border-top: 1px dashed rgba(239,156,61,.5); }
 
   h3 { font-size: 12px; font-weight: 800; margin: 12px 0 5px; padding-right: 8px; border-right: 3px solid ${ORANGE}; break-after: avoid; page-break-after: avoid; }
   table.pay { width: 100%; border-collapse: collapse; }
   table.pay th { background: ${ORANGE}; color: #ffffff; font-size: 9.5px; font-weight: 700; padding: 5px 8px; text-align: center; }
   table.pay th:first-child, table.pay td:first-child { text-align: right; }
-  table.pay td { padding: 6px 8px; border-bottom: 1px solid rgba(239,156,61,.35); font-size: 10.5px; }
+  table.pay td { background: #ffffff; padding: 6px 8px; border-bottom: 1px solid rgba(239,156,61,.35); font-size: 10.5px; }
 
   .terms p { margin: 0 0 4px; font-size: 10.5px; }
   .terms .gen { white-space: pre-line; }
